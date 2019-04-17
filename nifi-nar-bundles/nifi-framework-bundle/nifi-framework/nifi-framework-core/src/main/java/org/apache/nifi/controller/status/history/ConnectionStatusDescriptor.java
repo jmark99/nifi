@@ -21,47 +21,37 @@ import org.apache.nifi.controller.status.ConnectionStatus;
 import org.apache.nifi.controller.status.history.MetricDescriptor.Formatter;
 
 public enum ConnectionStatusDescriptor {
-    INPUT_BYTES(
-        "inputBytes",
-        "Bytes In (5 mins)",
+    INPUT_BYTES("inputBytes", "Bytes In (5 mins)",
         "The cumulative size of all FlowFiles that were transferred to this Connection in the past 5 minutes",
-        Formatter.DATA_SIZE,
-        ConnectionStatus::getInputBytes),
+        Formatter.DATA_SIZE, ConnectionStatus::getInputBytes),
 
-    INPUT_COUNT(
-        "inputCount",
-        "FlowFiles In (5 mins)",
+    INPUT_COUNT("inputCount", "FlowFiles In (5 mins)",
         "The number of FlowFiles that were transferred to this Connection in the past 5 minutes",
-        Formatter.COUNT,
-        s -> Long.valueOf(s.getInputCount())),
+        Formatter.COUNT, s -> Long.valueOf(s.getInputCount())),
 
-    OUTPUT_BYTES(
-        "outputBytes",
-        "Bytes Out (5 mins)",
+    OUTPUT_BYTES("outputBytes", "Bytes Out (5 mins)",
         "The cumulative size of all FlowFiles that were pulled from this Connection in the past 5 minutes",
-        Formatter.DATA_SIZE,
-        ConnectionStatus::getOutputBytes),
+        Formatter.DATA_SIZE, ConnectionStatus::getOutputBytes),
 
-    OUTPUT_COUNT(
-        "outputCount",
-        "FlowFiles Out (5 mins)",
+    OUTPUT_COUNT("outputCount", "FlowFiles Out (5 mins)",
         "The number of FlowFiles that were pulled from this Connection in the past 5 minutes",
-        Formatter.COUNT,
-        s -> Long.valueOf(s.getOutputCount())),
+        Formatter.COUNT, s -> Long.valueOf(s.getOutputCount())),
 
-    QUEUED_BYTES(
-        "queuedBytes",
-        "Queued Bytes",
-        "The number of Bytes queued in this Connection",
-        Formatter.DATA_SIZE,
-        ConnectionStatus::getQueuedBytes),
+    QUEUED_BYTES("queuedBytes", "Queued Bytes", "The number of Bytes queued in this Connection",
+        Formatter.DATA_SIZE, ConnectionStatus::getQueuedBytes),
 
-    QUEUED_COUNT(
-        "queuedCount",
-        "Queued Count",
-        "The number of FlowFiles queued in this Connection",
-        Formatter.COUNT,
-        s -> Long.valueOf(s.getQueuedCount()));
+    QUEUED_COUNT("queuedCount", "Queued Count", "The number of FlowFiles queued in this Connection",
+        Formatter.COUNT, s -> Long.valueOf(s.getQueuedCount())),
+
+    TIME_TO_FAILURE_BYTES("ttfBytes", "Time to Failure (bytes)", "The predicted time to queue "
+        + "overload in bytes",
+        //Formatter.COUNT, s -> Long.valueOf(s.getTimeToFailureBytes())),
+        Formatter.DATA_SIZE, ConnectionStatus::getQueuedBytes),
+
+    TIME_TO_FAILURE_COUNT("ttfCount", "Time to Failure (count)", "The predicted time to queue "
+        + "overload by flowfile count",
+        //Formatter.COUNT, s -> Long.valueOf(s.getTimeToFailureCount()));
+        Formatter.COUNT, s -> Long.valueOf(s.getQueuedCount()));
 
 
     private MetricDescriptor<ConnectionStatus> descriptor;

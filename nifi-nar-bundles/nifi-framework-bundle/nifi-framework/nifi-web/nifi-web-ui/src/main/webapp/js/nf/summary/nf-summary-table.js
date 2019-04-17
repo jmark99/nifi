@@ -392,8 +392,21 @@
         var outputColumn = {
             id: 'output',
             field: 'output',
-            name: '<span class="output-title">Out</span>&nbsp;/&nbsp;<span class="output-size-title">Size</span>&nbsp;<span style="font-weight: normal; overflow: hidden;">5 min</span>',
+            name: '<span class="output-title">Out1</span>&nbsp;/&nbsp;<span' +
+                ' class="output-size-title">Size</span>&nbsp;<span style="font-weight: normal; overflow: hidden;">5 min</span>',
             toolTip: 'Count / data size in the last 5 min',
+            sortable: true,
+            defaultSortAsc: false,
+            resizable: true,
+            formatter: nfCommon.genericValueFormatter
+        };
+        var ttfColumn = {
+            id: 'timeToFail',
+            field: 'ttf',
+            name: '<span class="output-title">TTFC</span>&nbsp;/&nbsp;<span' +
+                ' class="output-size-title">TTFB</span>&nbsp;<span style="font-weight:' +
+                ' normal;' + ' overflow: hidden;">15 min</span>',
+            toolTip: 'Minutes until overflow failure',
             sortable: true,
             defaultSortAsc: false,
             resizable: true,
@@ -756,7 +769,7 @@
             {
                 id: 'sourceName',
                 field: 'sourceName',
-                name: 'Source Name',
+                name: 'Source Name2',
                 sortable: true,
                 resizable: true,
                 formatter: nfCommon.genericValueFormatter
@@ -764,7 +777,7 @@
             {
                 id: 'name',
                 field: 'name',
-                name: 'Name',
+                name: 'Name1',
                 sortable: true,
                 resizable: true,
                 formatter: valueFormatter
@@ -772,7 +785,7 @@
             {
                 id: 'destinationName',
                 field: 'destinationName',
-                name: 'Destination Name',
+                name: 'Destination Name1',
                 sortable: true,
                 resizable: true,
                 formatter: nfCommon.genericValueFormatter
@@ -780,7 +793,8 @@
             inputColumn,
             queueColumn,
             backpressureColumn,
-            outputColumn
+            outputColumn,
+            ttfColumn
         ];
 
         // add an action column if appropriate

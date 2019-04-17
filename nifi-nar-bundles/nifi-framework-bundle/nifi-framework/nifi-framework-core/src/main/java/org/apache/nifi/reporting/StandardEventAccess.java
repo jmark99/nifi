@@ -236,6 +236,8 @@ public class StandardEventAccess implements UserAwareEventAccess {
         long bytesSent = 0L;
         int flowFilesTransferred = 0;
         long bytesTransferred = 0;
+        long ttfCount = 0L;
+        long ttfBytes = 0L;
 
         final boolean populateChildStatuses = currentDepth <= recursiveStatusDepth;
 
@@ -280,6 +282,9 @@ public class StandardEventAccess implements UserAwareEventAccess {
             bytesWritten += childGroupStatus.getBytesWritten();
             queuedCount += childGroupStatus.getQueuedCount();
             queuedContentSize += childGroupStatus.getQueuedContentSize();
+
+            ttfCount += childGroupStatus.getTimeToFailureCount();
+            ttfBytes += childGroupStatus.getTimeToFailureBytes();
 
             flowFilesReceived += childGroupStatus.getFlowFilesReceived();
             bytesReceived += childGroupStatus.getBytesReceived();
@@ -355,6 +360,23 @@ public class StandardEventAccess implements UserAwareEventAccess {
             final QueueSize queueSize = conn.getFlowFileQueue().size();
             final int connectionQueuedCount = queueSize.getObjectCount();
             final long connectionQueuedBytes = queueSize.getByteCount();
+
+            // Calculate Here???
+            //y = mx+b
+            // to calc here I would need the history count and the max bytes/counts for connection
+            double b = connectionQueuedCount;
+            double y = queueSize.getObjectCount();
+            double fakeDiff = 15.0;
+            double timeDelta = 15.0;
+            double slope = (connectionQueuedCount - fakeDiff)/timeDelta;
+            double x = (y - b)/slope;
+            final long connectionTtfCount = Math.round(x);
+            long connectionTtfBytes = 0L;
+
+            connStatus.setTimeToFailureBytes(connectionTtfBytes++);
+            connStatus.setTimeToFailureCount(connectionTtfCount);
+
+
             if (connectionQueuedCount > 0) {
                 connStatus.setQueuedBytes(connectionQueuedBytes);
                 connStatus.setQueuedCount(connectionQueuedCount);
@@ -366,6 +388,9 @@ public class StandardEventAccess implements UserAwareEventAccess {
 
             queuedCount += connectionQueuedCount;
             queuedContentSize += connectionQueuedBytes;
+
+            ttfCount += connectionTtfCount;
+            ttfBytes += connectionTtfBytes;
 
             final Connectable source = conn.getSource();
             if (ConnectableType.REMOTE_OUTPUT_PORT.equals(source.getConnectableType())) {
@@ -527,6 +552,8 @@ public class StandardEventAccess implements UserAwareEventAccess {
         status.setBytesSent(bytesSent);
         status.setFlowFilesTransferred(flowFilesTransferred);
         status.setBytesTransferred(bytesTransferred);
+        status.setTimeToFailureBytes(ttfBytes);
+        status.setTimeToFailureCount(ttfCount);
 
         final VersionControlInformation vci = group.getVersionControlInformation();
         if (vci != null && vci.getStatus() != null && vci.getStatus().getState() != null) {

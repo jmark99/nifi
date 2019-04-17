@@ -40,6 +40,8 @@ public class ConnectionStatus implements Cloneable {
     private long outputBytes;
     private int maxQueuedCount;
     private long maxQueuedBytes;
+    private long timeToFailureCount;
+    private long timeToFailureBytes;
 
     public String getId() {
         return id;
@@ -59,6 +61,22 @@ public class ConnectionStatus implements Cloneable {
 
     public int getQueuedCount() {
         return queuedCount;
+    }
+
+    public void setTimeToFailureCount(long timeToFailureCount) {
+        this.timeToFailureCount = timeToFailureCount;
+    }
+
+    public long getTimeToFailureCount() {
+        return timeToFailureCount;
+    }
+
+    public void setTimeToFailureBytes(long timeToFailureBytes) {
+        this.timeToFailureBytes = timeToFailureBytes;
+    }
+
+    public long getTimeToFailureBytes() {
+        return timeToFailureBytes;
     }
 
     public void setQueuedCount(final int queuedCount) {
@@ -206,6 +224,8 @@ public class ConnectionStatus implements Cloneable {
         clonedObj.backPressureObjectThreshold = backPressureObjectThreshold;
         clonedObj.maxQueuedBytes = maxQueuedBytes;
         clonedObj.maxQueuedCount = maxQueuedCount;
+        clonedObj.timeToFailureBytes = timeToFailureBytes;
+        clonedObj.timeToFailureCount = timeToFailureCount;
         return clonedObj;
     }
 
@@ -246,6 +266,10 @@ public class ConnectionStatus implements Cloneable {
         builder.append(maxQueuedCount);
         builder.append(", maxQueueBytes=");
         builder.append(maxQueuedBytes);
+        builder.append(", timeToFailureCount=");
+        builder.append(timeToFailureCount);
+        builder.append(", timeToFailureBytes=");
+        builder.append(timeToFailureBytes);
         builder.append("]");
         return builder.toString();
     }

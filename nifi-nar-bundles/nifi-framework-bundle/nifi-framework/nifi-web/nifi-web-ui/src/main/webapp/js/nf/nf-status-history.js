@@ -295,7 +295,7 @@
             $('#status-history-details').empty();
 
             // add status history details
-            var detailsContainer = buildDetailsContainer('Status History');
+            var detailsContainer = buildDetailsContainer('Status History1');
             d3.map(statusHistory.details).each(function (value, label) {
                 addDetailItem(detailsContainer, label, value);
             });
@@ -1033,7 +1033,7 @@
             // configure the dialog and make it draggable
             $('#status-history-dialog').modal({
                 scrollableContentStyle: 'scrollable',
-                headerText: "Status History",
+                headerText: "Status History2",
                 buttons: [{
                     buttonText: 'Close',
                     color: {
