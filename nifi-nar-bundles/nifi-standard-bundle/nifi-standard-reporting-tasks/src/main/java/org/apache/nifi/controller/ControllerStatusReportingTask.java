@@ -59,8 +59,10 @@ public class ControllerStatusReportingTask extends AbstractReportingTask {
     private static final String PROCESSOR_LINE_FORMAT_NO_DELTA = "| %1$-30.30s | %2$-36.36s | %3$-24.24s | %4$10.10s | %5$19.19s | %6$19.19s | %7$12.12s | %8$13.13s | %9$5.5s | %10$12.12s |\n";
     private static final String PROCESSOR_LINE_FORMAT_WITH_DELTA = "| %1$-30.30s | %2$-36.36s | %3$-24.24s | %4$10.10s | %5$43.43s | %6$43.43s | %7$28.28s | %8$30.30s | %9$14.14s | %10$28.28s |\n";
 
-    private static final String CONNECTION_LINE_FORMAT_NO_DELTA = "| %1$-36.36s | %2$-30.30s | %3$-36.36s | %4$-30.30s | %5$19.19s | %6$19.19s | %7$19.19s |\n";
-    private static final String CONNECTION_LINE_FORMAT_WITH_DELTA = "| %1$-36.36s | %2$-30.30s | %3$-36.36s | %4$-30.30s | %5$43.43s | %6$43.43s | %7$43.43s |\n";
+    private static final String CONNECTION_LINE_FORMAT_NO_DELTA = "| %1$-36.36s | %2$-30.30s | "
+        + "%3$-36.36s | %4$-30.30s | %5$19.19s | %6$19.19s | %7$19.19s | %8$19.19s \n";
+    private static final String CONNECTION_LINE_FORMAT_WITH_DELTA = "| %1$-36.36s | %2$-30.30s | "
+        + "%3$-36.36s | %4$-30.30s | %5$43.43s | %6$43.43s | %7$43.43s | %8$43.43s \n";
 
     private volatile String processorLineFormat;
     private volatile String processorHeader;
@@ -83,7 +85,9 @@ public class ControllerStatusReportingTask extends AbstractReportingTask {
     @OnScheduled
     public void onConfigured(final ConfigurationContext context) {
         connectionLineFormat = context.getProperty(SHOW_DELTAS).asBoolean() ? CONNECTION_LINE_FORMAT_WITH_DELTA : CONNECTION_LINE_FORMAT_NO_DELTA;
-        connectionHeader = String.format(connectionLineFormat, "Connection ID", "Source", "Connection Name", "Destination", "Flow Files In", "Flow Files Out", "FlowFiles Queued");
+        connectionHeader = String.format(connectionLineFormat, "Connection ID", "Source",
+            "Connection Name", "Destination", "Flow Files In", "Flow Files Out", "FlowFiles "
+                + "Queued", "ttf");
 
         final StringBuilder connectionBorderBuilder = new StringBuilder(connectionHeader.length());
         for (int i = 0; i < connectionHeader.length(); i++) {
@@ -175,20 +179,31 @@ public class ControllerStatusReportingTask extends AbstractReportingTask {
             final String input = connectionStatus.getInputCount() + " / " + FormatUtils.formatDataSize(connectionStatus.getInputBytes());
             final String output = connectionStatus.getOutputCount() + " / " + FormatUtils.formatDataSize(connectionStatus.getOutputBytes());
             final String queued = connectionStatus.getQueuedCount() + " / " + FormatUtils.formatDataSize(connectionStatus.getQueuedBytes());
+            final String ttf =
+                connectionStatus.getTimeToFailureCount() + " / " + FormatUtils.formatDataSize(connectionStatus.getTimeToFailureBytes());
+
+            connectionLogger.info(">>>> queued: " + queued);
+            connectionLogger.info(">>>> ttf: " + ttf);
 
             final String inputDiff;
             final String outputDiff;
             final String queuedDiff;
+            final String ttfDiff;
 
             final ConnectionStatus lastStatus = lastConnectionStatus.get(connectionStatus.getId());
             if (showDeltas && lastStatus != null) {
                 inputDiff = toDiff(lastStatus.getInputCount(), lastStatus.getInputBytes(), connectionStatus.getInputCount(), connectionStatus.getInputBytes());
                 outputDiff = toDiff(lastStatus.getOutputCount(), lastStatus.getOutputBytes(), connectionStatus.getOutputCount(), connectionStatus.getOutputBytes());
                 queuedDiff = toDiff(lastStatus.getQueuedCount(), lastStatus.getQueuedBytes(), connectionStatus.getQueuedCount(), connectionStatus.getQueuedBytes());
+                ttfDiff = toDiff(lastStatus.getTimeToFailureCount(),
+                    lastStatus.getTimeToFailureBytes(), connectionStatus.getTimeToFailureCount(),
+                    connectionStatus.getTimeToFailureBytes());
             } else {
                 inputDiff = toDiff(0L, 0L, connectionStatus.getInputCount(), connectionStatus.getInputBytes());
                 outputDiff = toDiff(0L, 0L, connectionStatus.getOutputCount(), connectionStatus.getOutputBytes());
                 queuedDiff = toDiff(0L, 0L, connectionStatus.getQueuedCount(), connectionStatus.getQueuedBytes());
+                ttfDiff = toDiff(0L, 0L, connectionStatus.getTimeToFailureCount(),
+                    connectionStatus.getTimeToFailureBytes());
             }
 
             if (showDeltas) {
@@ -199,7 +214,8 @@ public class ControllerStatusReportingTask extends AbstractReportingTask {
                         connectionStatus.getDestinationName(),
                         input + inputDiff,
                         output + outputDiff,
-                        queued + queuedDiff));
+                        queued + queuedDiff,
+                        ttf + ttfDiff));
             } else {
                 builder.append(String.format(connectionLineFormat,
                         connectionStatus.getId(),
@@ -208,7 +224,8 @@ public class ControllerStatusReportingTask extends AbstractReportingTask {
                         connectionStatus.getDestinationName(),
                         input,
                         output,
-                        queued));
+                        queued,
+                        ttf));
             }
 
             lastConnectionStatus.put(connectionStatus.getId(), connectionStatus);

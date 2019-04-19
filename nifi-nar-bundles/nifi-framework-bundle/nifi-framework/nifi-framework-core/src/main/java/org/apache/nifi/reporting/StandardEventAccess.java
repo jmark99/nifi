@@ -47,6 +47,7 @@ import org.apache.nifi.controller.status.TransmissionStatus;
 import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.groups.RemoteProcessGroup;
 import org.apache.nifi.history.History;
+import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.provenance.ProvenanceEventRecord;
 import org.apache.nifi.provenance.ProvenanceRepository;
@@ -58,12 +59,19 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StandardEventAccess implements UserAwareEventAccess {
     private final FlowFileEventRepository flowFileEventRepository;
     private final FlowController flowController;
+
+    private static final Logger logger = LoggerFactory.getLogger(StandardEventAccess.class);
 
     public StandardEventAccess(final FlowController flowController, final FlowFileEventRepository flowFileEventRepository) {
         this.flowController = flowController;
@@ -365,15 +373,26 @@ public class StandardEventAccess implements UserAwareEventAccess {
             //y = mx+b
             // to calc here I would need the history count and the max bytes/counts for connection
             double b = connectionQueuedCount;
-            double y = queueSize.getObjectCount();
+            logger.info(">>>> b: " + b);
+            double y = queueSize.getObjectCount()  // this is the wrong value...need threshold
+            // value instead
+            logger.info(">>>> y: " + y);
+            // find where rest api calculates history stuff
             double fakeDiff = 15.0;
             double timeDelta = 15.0;
+            logger.info(">>>> fakeDiff/timeDelta: " + fakeDiff + "/" + timeDelta);
             double slope = (connectionQueuedCount - fakeDiff)/timeDelta;
+            logger.info(">>>> slope: " + slope);
             double x = (y - b)/slope;
+            logger.info(">>>> x: " + x);
             final long connectionTtfCount = Math.round(x);
-            long connectionTtfBytes = 0L;
+            logger.info("connectionTtfCount: " + connectionTtfCount);
+            Random rnd = new Random();
+            long connectionTtfBytes = rnd.nextInt(125) + 10;
+            logger.info(">>>> connectionTtfBytes: " + connectionTtfBytes);
 
-            connStatus.setTimeToFailureBytes(connectionTtfBytes++);
+            logger.info(">>>> setting connectionTtfBytes/Count");
+            connStatus.setTimeToFailureBytes(connectionTtfBytes);
             connStatus.setTimeToFailureCount(connectionTtfCount);
 
 

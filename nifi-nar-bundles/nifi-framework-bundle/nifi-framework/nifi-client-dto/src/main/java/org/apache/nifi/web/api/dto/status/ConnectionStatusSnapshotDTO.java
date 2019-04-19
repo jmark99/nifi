@@ -48,8 +48,8 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
     private String queuedCount;
     private Integer percentUseCount;
     private Integer percentUseBytes;
-    private Integer timeToFailureBytes = 0;
-    private Integer timeToFailureCount = 0;
+    private Long timeToFailureBytes;
+    private Long timeToFailureCount;
 
     /* getters / setters */
     /**
@@ -100,6 +100,23 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
         this.queuedCount = queuedCount;
     }
 
+    /**
+     * @return Time in seconds to count overflow
+     */
+    @ApiModelProperty("The time in seconds until the queue count overflows")
+    public Long getTimeToFailureCount() { return timeToFailureCount; }
+
+    public void setTimeToFailureCount(Long timeToFailureCount) { this.timeToFailureCount =
+        timeToFailureCount; }
+
+    /**
+     * @return Time in seconds to byte overflow
+     */
+    @ApiModelProperty("The time in seconds until the byte count overflows")
+    public Long getTimeToFailureBytes() { return timeToFailureBytes; }
+
+    public void setTimeToFailureBytes(Long timeToFailureBytes) { this.timeToFailureBytes =
+        timeToFailureBytes; }
 
     /**
      * @return total size of flow files that are queued
@@ -297,6 +314,8 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
         other.setQueuedSize(getQueuedSize());
         other.setPercentUseBytes(getPercentUseBytes());
         other.setPercentUseCount(getPercentUseCount());
+        other.setTimeToFailureBytes(getTimeToFailureBytes());
+        other.setTimeToFailureCount(getTimeToFailureCount());
 
         return other;
     }
