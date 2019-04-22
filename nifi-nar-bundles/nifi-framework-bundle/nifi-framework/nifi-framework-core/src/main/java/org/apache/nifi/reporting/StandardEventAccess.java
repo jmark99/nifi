@@ -32,6 +32,8 @@ import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.ProcessScheduler;
 import org.apache.nifi.controller.ProcessorNode;
 import org.apache.nifi.controller.ScheduledState;
+import org.apache.nifi.controller.queue.FlowFileSummary;
+import org.apache.nifi.controller.queue.ListFlowFileStatus;
 import org.apache.nifi.controller.queue.QueueSize;
 import org.apache.nifi.controller.repository.FlowFileEvent;
 import org.apache.nifi.controller.repository.FlowFileEventRepository;
@@ -369,32 +371,9 @@ public class StandardEventAccess implements UserAwareEventAccess {
             final int connectionQueuedCount = queueSize.getObjectCount();
             final long connectionQueuedBytes = queueSize.getByteCount();
 
-            // Calculate Here???
-            //y = mx+b
-            // to calc here I would need the history count and the max bytes/counts for connection
-            double b = connectionQueuedCount;
-            logger.info(">>>> b: " + b);
-            double y = queueSize.getObjectCount()  // this is the wrong value...need threshold
-            // value instead
-            logger.info(">>>> y: " + y);
-            // find where rest api calculates history stuff
-            double fakeDiff = 15.0;
-            double timeDelta = 15.0;
-            logger.info(">>>> fakeDiff/timeDelta: " + fakeDiff + "/" + timeDelta);
-            double slope = (connectionQueuedCount - fakeDiff)/timeDelta;
-            logger.info(">>>> slope: " + slope);
-            double x = (y - b)/slope;
-            logger.info(">>>> x: " + x);
-            final long connectionTtfCount = Math.round(x);
-            logger.info("connectionTtfCount: " + connectionTtfCount);
-            Random rnd = new Random();
-            long connectionTtfBytes = rnd.nextInt(125) + 10;
-            logger.info(">>>> connectionTtfBytes: " + connectionTtfBytes);
-
-            logger.info(">>>> setting connectionTtfBytes/Count");
-            connStatus.setTimeToFailureBytes(connectionTtfBytes);
-            connStatus.setTimeToFailureCount(connectionTtfCount);
-
+            // TODO
+            long connectionTTFCount = computeTimeToFailureCount(conn, connectionQueuedCount);
+            long connectionTTFBytes = computeTimeToFailureBytes(conn, connectionQueuedBytes);
 
             if (connectionQueuedCount > 0) {
                 connStatus.setQueuedBytes(connectionQueuedBytes);
@@ -408,8 +387,8 @@ public class StandardEventAccess implements UserAwareEventAccess {
             queuedCount += connectionQueuedCount;
             queuedContentSize += connectionQueuedBytes;
 
-            ttfCount += connectionTtfCount;
-            ttfBytes += connectionTtfBytes;
+            ttfCount += connectionTTFCount;
+            ttfBytes += connectionTTFBytes;
 
             final Connectable source = conn.getSource();
             if (ConnectableType.REMOTE_OUTPUT_PORT.equals(source.getConnectableType())) {
@@ -582,6 +561,70 @@ public class StandardEventAccess implements UserAwareEventAccess {
         return status;
     }
 
+    //            final long connectionQueuedCount =
+    //                conn.getFlowFileQueue().getBackPressureObjectThreshold();
+    //            final long connectionQueuedBytes =
+    //                Long.valueOf(conn.getFlowFileQueue().getBackPressureDataSizeThreshold());
+    //
+    //            final long connCountThreshold =
+    //                conn.getFlowFileQueue().getBackPressureObjectThreshold();
+    //            final long connByteThreshold =
+    //                Long.valueOf(conn.getFlowFileQueue().getBackPressureDataSizeThreshold());
+    //
+    //            // Calculate Here???
+    //            //y = mx+b
+    //            // to calc here I would need the history count and the max bytes/counts for connection
+    //            double b = connectionQueuedCount;
+    //            logger.info(">>>> b: " + b);
+    //            double y = queueSize.getObjectCount()  // this is the wrong value...need threshold
+    //            // value instead
+    //            logger.info(">>>> y: " + y);
+    //            // find where rest api calculates history stuff
+    //            double fakeDiff = 15.0;
+    //            double timeDelta = 15.0;
+    //            logger.info(">>>> fakeDiff/timeDelta: " + fakeDiff + "/" + timeDelta);
+    //            double slope = (connectionQueuedCount - fakeDiff)/timeDelta;
+    //            logger.info(">>>> slope: " + slope);
+    //            double x = (y - b)/slope;
+    //            logger.info(">>>> x: " + x);
+    //            final long connectionTtfCount = Math.round(x);
+    //            logger.info("connectionTtfCount: " + connectionTtfCount);
+    //            Random rnd = new Random();
+    //            long connectionTtfBytes = rnd.nextInt(125) + 10;
+    //            logger.info(">>>> connectionTtfBytes: " + connectionTtfBytes);
+    //
+    //            logger.info(">>>> setting connectionTtfBytes/Count");
+    //            connStatus.setTimeToFailureBytes(connectionTtfBytes);
+    //            connStatus.setTimeToFailureCount(connectionTtfCount);
+
+    // TODO
+    private long computeTimeToFailureCount(final Connection conn, final int connectionQueuedCount) {
+        long b = conn.getFlowFileQueue().getBackPressureObjectThreshold();
+        logger.info(">>>> (b) countThreshold:    " + b);
+        long y = connectionQueuedCount;
+        logger.info(">>>> (y) currentQueryCount: " + y);
+        // still need queue count 15 minutes prior
+        // so how do i get the connection history here.
+
+        ListFlowFileStatus listFlowFileStatus = conn.getFlowFileQueue()
+            .listFlowFiles(conn.getIdentifier(), 15);
+        List<FlowFileSummary> flowFileSummaries = listFlowFileStatus.getFlowFileSummaries();
+        for (FlowFileSummary summary : flowFileSummaries) {
+            logger.info(">>>> " + summary.getFilename());
+        }
+
+        return y;
+    }
+
+    private long computeTimeToFailureBytes(final Connection conn,
+        final long connectionQueuedBytes) {
+        long b = Long.valueOf(conn.getFlowFileQueue().getBackPressureDataSizeThreshold());
+        logger.info(">>>> (b) byteThreshold:    " + b);
+        long y = connectionQueuedBytes;
+        logger.info(">>>> (y) currentByteCount: " + y);
+        // still need byte count 15 minutes prior
+        return y;
+    }
 
     private RemoteProcessGroupStatus createRemoteGroupStatus(final RemoteProcessGroup remoteGroup, final RepositoryStatusReport statusReport, final Predicate<Authorizable> isAuthorized) {
         final boolean isRemoteProcessGroupAuthorized = isAuthorized.evaluate(remoteGroup);
