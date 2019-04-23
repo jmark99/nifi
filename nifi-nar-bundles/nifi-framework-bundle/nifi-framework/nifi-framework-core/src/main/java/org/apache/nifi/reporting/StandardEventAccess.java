@@ -604,9 +604,13 @@ public class StandardEventAccess implements UserAwareEventAccess {
                 logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
                 logger.info(">>>> ConnectionID: " + conn.getIdentifier());
                 logger.info(">>>> Date: " + aggregateSnapshots.get(0).getTimestamp().toString());
-                logger.info(">>>> metrics: " + aggregateSnapshots.get(0).getStatusMetrics().toString());
+                logger.info(">>>> queuedCount: " + aggregateSnapshots.get(0).getStatusMetrics().get(
+                    "queuedBytes"));
                 logger.info(">>>> Date: " + aggregateSnapshots.get(numberOfSnapshots-1).getTimestamp().toString());
-                logger.info(">>>> metrics: " + aggregateSnapshots.get(numberOfSnapshots-1).getStatusMetrics().toString());
+                logger.info(">>>> queuedCount: " + aggregateSnapshots.get(numberOfSnapshots-1).getStatusMetrics().get(
+                    "queuedCount"));
+                logger.info(">>>> queuedBytes: " + aggregateSnapshots.get(numberOfSnapshots-1).getStatusMetrics().get(
+                    "queuedBytes"));
                 logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
             }
             ttf[0] = 0L;
