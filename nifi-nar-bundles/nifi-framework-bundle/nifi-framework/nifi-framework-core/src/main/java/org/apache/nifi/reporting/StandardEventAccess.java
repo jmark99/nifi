@@ -570,21 +570,25 @@ public class StandardEventAccess implements UserAwareEventAccess {
     // TODO
 
     private long [] computeTimeToFailure(final Connection conn) {
+        logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
         logger.info(">>>> COMPUTE TTF for Connection : " + conn.getIdentifier());
         long [] ttf = new long[2];
         // we will compute the slope per fifteen minutes.
         // will need the stats for the connection 15 minutes prior as well as stats for latest
         // connection.
         // Get current time and time 15 minutes prior
-        Date currentTime = new Date();
-        Date previousTime = DateUtils.addMinutes(currentTime, -15);
-        logger.info(">>>> currentTime: " + currentTime.toString());
-        logger.info(">>>> prevTime:    " + previousTime.toString());
+//        Date currentTime = new Date();
+//        Date previousTime = DateUtils.addMinutes(currentTime, -15);
+//        logger.info(">>>> currentTime: " + currentTime.toString());
+//        logger.info(">>>> prevTime:    " + previousTime.toString());
         // These dates are used to get the connection history for that time interval.
         // Shouldn't need more than 15
+//        StatusHistoryDTO connHistory =
+//            flowController.getConnectionStatusHistory(conn.getIdentifier(), previousTime,
+//                currentTime, 15);
         StatusHistoryDTO connHistory =
-            flowController.getConnectionStatusHistory(conn.getIdentifier(), previousTime,
-                currentTime, 15);
+            flowController.getConnectionStatusHistory(conn.getIdentifier(), null,
+                null, 16);
         // get a list of the snapshot data
         List<StatusSnapshotDTO> aggregateSnapshots = connHistory.getAggregateSnapshots();
         int numberOfSnapshots = aggregateSnapshots.size();
@@ -598,18 +602,22 @@ public class StandardEventAccess implements UserAwareEventAccess {
 //        logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
         // Would like 15 minutes prior to calculating, so if less than 15 entries just return 0
-        if (numberOfSnapshots < 15) {
+        if (numberOfSnapshots < 16) {
             logger.info(">>>> insufficient data to predict...");
             if (numberOfSnapshots > 0) {
+                int recent = numberOfSnapshots - 1;
+                int past = 0;
                 logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
                 logger.info(">>>> ConnectionID: " + conn.getIdentifier());
-                logger.info(">>>> Date: " + aggregateSnapshots.get(0).getTimestamp().toString());
-                logger.info(">>>> queuedCount: " + aggregateSnapshots.get(0).getStatusMetrics().get(
-                    "queuedBytes"));
-                logger.info(">>>> Date: " + aggregateSnapshots.get(numberOfSnapshots-1).getTimestamp().toString());
-                logger.info(">>>> queuedCount: " + aggregateSnapshots.get(numberOfSnapshots-1).getStatusMetrics().get(
+                logger.info(">>>> Date: " + aggregateSnapshots.get(past).getTimestamp().toString());
+                logger.info(">>>> prev queuedCount: " + aggregateSnapshots.get(past).getStatusMetrics().get(
                     "queuedCount"));
-                logger.info(">>>> queuedBytes: " + aggregateSnapshots.get(numberOfSnapshots-1).getStatusMetrics().get(
+                logger.info(">>>> prev queuedBytes: " + aggregateSnapshots.get(past).getStatusMetrics().get(
+                    "queuedBytes"));
+                logger.info(">>>> Date: " + aggregateSnapshots.get(recent).getTimestamp().toString());
+                logger.info(">>>> current queuedCount: " + aggregateSnapshots.get(recent).getStatusMetrics().get(
+                    "queuedCount"));
+                logger.info(">>>> current queuedBytes: " + aggregateSnapshots.get(recent).getStatusMetrics().get(
                     "queuedBytes"));
                 logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
             }
@@ -626,9 +634,9 @@ public class StandardEventAccess implements UserAwareEventAccess {
             logger.info(">>>> bytesThreshold: " + bytesThreshold);
 
             logger.info(">>>> get oldestSnapshot");
-            StatusSnapshotDTO oldestSnapshot = aggregateSnapshots.get(0);
+            StatusSnapshotDTO oldestSnapshot = aggregateSnapshots.get(numberOfSnapshots - 16);
             logger.info(">>>> get currentSnapshot");
-            StatusSnapshotDTO currentSnapshot = aggregateSnapshots.get(numberOfSnapshots-1);
+            StatusSnapshotDTO currentSnapshot = aggregateSnapshots.get(numberOfSnapshots - 1);
 
             long currentCount = currentSnapshot.getStatusMetrics().get("queuedCount");
             long oldestCount = oldestSnapshot.getStatusMetrics().get("queuedCount");
@@ -670,17 +678,17 @@ public class StandardEventAccess implements UserAwareEventAccess {
         // y = countThreshold
         // b = currentCount
         // m = (current_val - prev_val) / time_delta
-        long slope = (current - prev) / delta;
+        double slope = (current - prev) / delta;
         logger.info(">>>> countSlope: " + slope);
-        long ttfCount;
+        double dttfCount;
         if (slope <= 0) {
             logger.info(">>>> slope is 0 or negative...no worries of overflow");
-            ttfCount = 100000;
+            dttfCount = 100000;
         } else {
-            ttfCount = (countThreshold - current) / slope;
+            dttfCount = (countThreshold - current) / slope;
         }
-        ttfCount /= 60;
-        logger.info(">>>> ttfCount: " + ttfCount);
+        logger.info(">>>> raw ttfCount: " + dttfCount);
+        long ttfCount = (long)dttfCount;
         return ttfCount;
     }
 
@@ -690,17 +698,17 @@ public class StandardEventAccess implements UserAwareEventAccess {
         // y = countThreshold
         // b = currentCount
         // m = (current_val - prev_val) / time_delta
-        long slope = (current - prev) / delta;
+        double slope = (current - prev) / delta;
         logger.info(">>>> bytesSlope: " + slope);
-        long ttfBytes;
+        double dttfBytes;
         if (slope <= 0) {
-            ttfBytes = 100000;
+            dttfBytes = 100000;
             logger.info(">>>> slope is 0 or negative...no worries of overflow");
         } else {
-            ttfBytes = (bytesThreshold - current) / slope;
+            dttfBytes = (bytesThreshold - current) / slope;
         }
-        ttfBytes /= 60;
-        logger.info(">>>> ttfBytes: " + ttfBytes);
+        logger.info(">>>> raw ttfBytes: " + dttfBytes);
+        long ttfBytes = (long)dttfBytes;
         return ttfBytes;
     }
 
