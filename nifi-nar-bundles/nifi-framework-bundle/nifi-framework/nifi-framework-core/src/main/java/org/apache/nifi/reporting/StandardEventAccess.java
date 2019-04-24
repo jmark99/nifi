@@ -577,17 +577,17 @@ public class StandardEventAccess implements UserAwareEventAccess {
         // will need the stats for the connection 15 minutes prior as well as stats for latest
         // connection.
         // Get current time and time 15 minutes prior
-//        Date currentTime = new Date();
-//        Date previousTime = DateUtils.addMinutes(currentTime, -15);
-//        logger.info(">>>> currentTime: " + currentTime.toString());
-//        logger.info(">>>> prevTime:    " + previousTime.toString());
+        Date currentTime = new Date();
+        Date previousTime = DateUtils.addMinutes(currentTime, -15);
+        logger.info(">>>> currentTime: " + currentTime.toString());
+        logger.info(">>>> prevTime:    " + previousTime.toString());
         // These dates are used to get the connection history for that time interval.
         // Shouldn't need more than 15
 //        StatusHistoryDTO connHistory =
 //            flowController.getConnectionStatusHistory(conn.getIdentifier(), previousTime,
 //                currentTime, 15);
         StatusHistoryDTO connHistory =
-            flowController.getConnectionStatusHistory(conn.getIdentifier(), null,
+            flowController.getConnectionStatusHistory(conn.getIdentifier(), previousTime,
                 null, 16);
         // get a list of the snapshot data
         List<StatusSnapshotDTO> aggregateSnapshots = connHistory.getAggregateSnapshots();
@@ -635,8 +635,10 @@ public class StandardEventAccess implements UserAwareEventAccess {
 
             logger.info(">>>> get oldestSnapshot");
             StatusSnapshotDTO oldestSnapshot = aggregateSnapshots.get(numberOfSnapshots - 16);
+            logger.info(">>>> Date: " + oldestSnapshot.getTimestamp().toString());
             logger.info(">>>> get currentSnapshot");
             StatusSnapshotDTO currentSnapshot = aggregateSnapshots.get(numberOfSnapshots - 1);
+            logger.info(">>>> Date: " + currentSnapshot.getTimestamp().toString());
 
             long currentCount = currentSnapshot.getStatusMetrics().get("queuedCount");
             long oldestCount = oldestSnapshot.getStatusMetrics().get("queuedCount");

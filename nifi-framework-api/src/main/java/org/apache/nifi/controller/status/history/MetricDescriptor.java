@@ -26,7 +26,8 @@ public interface MetricDescriptor<T> {
     enum Formatter {
         COUNT,
         DURATION,
-        DATA_SIZE
+        DATA_SIZE,
+        TIME_IN_MINUTES
     };
 
     int getMetricIdentifier();
