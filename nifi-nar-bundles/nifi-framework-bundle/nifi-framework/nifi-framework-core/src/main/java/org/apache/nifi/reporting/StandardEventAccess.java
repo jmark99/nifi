@@ -650,24 +650,30 @@ public class StandardEventAccess implements UserAwareEventAccess {
                 currentSnapshot.getTimestamp(), TimeUnit.MINUTES);
             logger.info(">>>> delta: " + timeDeltaInMinutes);
 
-            ttf[0] = computeTimeToFailureCount(countThreshold, currentCount, oldestCount, timeDeltaInMinutes);
-            ttf[1] = computeTimeToFailureBytes(bytesThreshold, currentBytes, oldestBytes, timeDeltaInMinutes);
+            ttf[0] = computeTimeToFailureCount(countThreshold, currentCount, oldestCount,
+                timeDeltaInMinutes) * 60 * 1000;
+            ttf[1] = computeTimeToFailureBytes(bytesThreshold, currentBytes, oldestBytes,
+                timeDeltaInMinutes) * 60 * 1000;
         }
         return ttf;
     }
 
     private long convertThresholdToBytes(String backPressureDataSizeThreshold) {
-        long gByte = 1073741824L;
-        long mByte = 1048576L;
-        long kByte = 1024L;
-        long bytes = 0L;
+        final long BYTES_IN_KILOBYTE = 1024L;
+        final long BYTES_IN_MEGABYTE = 1048576L;
+        final long BYTES_IN_GIGABYTE = 1073741824L;
+        final long BYTES_IN_TERABYTE = 1099511627776L;
+        long bytes;
+
         String[] threshold = backPressureDataSizeThreshold.split("\\s+");
-        if (threshold[1].toLowerCase().contains("gb")) {
-            bytes = Long.valueOf(threshold[0]) * gByte;
+        if (threshold[1].toLowerCase().contains("tb")) {
+            bytes = Long.valueOf(threshold[0]) * BYTES_IN_TERABYTE;
+        } else if (threshold[1].toLowerCase().contains("gb")) {
+            bytes = Long.valueOf(threshold[0]) * BYTES_IN_GIGABYTE;
         } else if (threshold[1].toLowerCase().contains("mb")) {
-            bytes = Long.valueOf(threshold[0]) * mByte;
+            bytes = Long.valueOf(threshold[0]) * BYTES_IN_MEGABYTE;
         } else if (threshold[1].toLowerCase().contains("kb")) {
-            bytes = Long.valueOf(threshold[0]) * kByte;
+            bytes = Long.valueOf(threshold[0]) * BYTES_IN_KILOBYTE;
         } else {
             bytes = Long.valueOf(threshold[0]);
         }
@@ -685,7 +691,7 @@ public class StandardEventAccess implements UserAwareEventAccess {
         double dttfCount;
         if (slope <= 0) {
             logger.info(">>>> slope is 0 or negative...no worries of overflow");
-            dttfCount = 100000;
+            dttfCount = -1;
         } else {
             dttfCount = (countThreshold - current) / slope;
         }
@@ -704,7 +710,7 @@ public class StandardEventAccess implements UserAwareEventAccess {
         logger.info(">>>> bytesSlope: " + slope);
         double dttfBytes;
         if (slope <= 0) {
-            dttfBytes = 100000;
+            dttfBytes = -1;
             logger.info(">>>> slope is 0 or negative...no worries of overflow");
         } else {
             dttfBytes = (bytesThreshold - current) / slope;

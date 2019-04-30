@@ -150,6 +150,11 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
 
     @Override
     public StatusHistory getConnectionStatusHistory(final String connectionId, final Date start, final Date end, final int preferredDataPoints) {
+        String theCall = String
+            .format(">>>> StatusHistory.getConnectionStatusHistory(%s, %s, %s, %d", connectionId,
+                start == null ? "null" : start.toString(),
+                end == null ? "null" : end.toString(), preferredDataPoints);
+        logger.info(theCall);
         return getStatusHistory(connectionId, true, DEFAULT_CONNECTION_METRICS);
     }
 
