@@ -295,7 +295,7 @@
             $('#status-history-details').empty();
 
             // add status history details
-            var detailsContainer = buildDetailsContainer('Status History1');
+            var detailsContainer = buildDetailsContainer('Status History');
             d3.map(statusHistory.details).each(function (value, label) {
                 addDetailItem(detailsContainer, label, value);
             });
@@ -409,8 +409,12 @@
             var y = d3.scaleLinear()
                 .range([height, 0]);
 
+            console.log(">>>> y: " + y);
+
             var yAxis = d3.axisLeft(y)
                 .tickFormat(formatters[selectedDescriptor.formatter]);
+
+            console.log(">>>> yAxis: " + y);
 
             // status line
             var line = d3.line()
@@ -458,6 +462,12 @@
 
             // determine the y axis range
             y.domain([getMinValue(statusData), getMaxValue(statusData)]);
+
+            console.log(">>>> minValue(statusData): " + getMinValue(statusData));
+            console.log(">>>> maxValue(statusData): " + getMaxValue(statusData));
+
+            console.debug(">>>> minValue(statusData): " + getMinValue(statusData));
+            console.debug(">>>> maxValue(statusData): " + getMaxValue(statusData));
 
             // build the x axis
             chart.append('g')
@@ -1033,7 +1043,7 @@
             // configure the dialog and make it draggable
             $('#status-history-dialog').modal({
                 scrollableContentStyle: 'scrollable',
-                headerText: "Status History2",
+                headerText: "Status History",
                 buttons: [{
                     buttonText: 'Close',
                     color: {

@@ -378,14 +378,18 @@ public class StandardEventAccess implements UserAwareEventAccess {
 
             // TODO
             long [] timeToFailure = computeTimeToFailure(conn);
+            ttfBytes = timeToFailure[1];
+            ttfCount = timeToFailure[0];
+
+            //connStatus.setTimeToFailureBytes(timeToFailure[1]);
+            //connStatus.setTimeToFailureCount(timeToFailure[0]);
+            connStatus.setTimeToFailureBytes(ttfBytes);
+            connStatus.setTimeToFailureCount(ttfCount);
 
             if (connectionQueuedCount > 0) {
                 connStatus.setQueuedBytes(connectionQueuedBytes);
                 connStatus.setQueuedCount(connectionQueuedCount);
             }
-
-            connStatus.setTimeToFailureBytes(timeToFailure[1]);
-            connStatus.setTimeToFailureCount(timeToFailure[0]);
 
             if (populateChildStatuses) {
                 connectionStatusCollection.add(connStatus);
@@ -573,19 +577,20 @@ public class StandardEventAccess implements UserAwareEventAccess {
         logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
         logger.info(">>>> COMPUTE TTF for Connection : " + conn.getIdentifier());
         long [] ttf = new long[2];
-        // we will compute the slope per fifteen minutes.
+        final int ALERT_THRESHOLD_MINUTES = 240;
+
+        // TODO use a user provided value as the default if there is no fear of overflow
+        // Use 12 hours for now
+        ttf[0] = ALERT_THRESHOLD_MINUTES * 60 * 1000;
+        ttf[1] = ALERT_THRESHOLD_MINUTES * 60 * 1000;
         // will need the stats for the connection 15 minutes prior as well as stats for latest
         // connection.
-        // Get current time and time 15 minutes prior
         Date currentTime = new Date();
         Date previousTime = DateUtils.addMinutes(currentTime, -15);
         logger.info(">>>> currentTime: " + currentTime.toString());
         logger.info(">>>> prevTime:    " + previousTime.toString());
         // These dates are used to get the connection history for that time interval.
-        // Shouldn't need more than 15
-//        StatusHistoryDTO connHistory =
-//            flowController.getConnectionStatusHistory(conn.getIdentifier(), previousTime,
-//                currentTime, 15);
+        // Shouldn't need more than 16
         StatusHistoryDTO connHistory =
             flowController.getConnectionStatusHistory(conn.getIdentifier(), previousTime,
                 null, 16);
@@ -601,60 +606,67 @@ public class StandardEventAccess implements UserAwareEventAccess {
 //        }
 //        logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
-        // Would like 15 minutes prior to calculating, so if less than 15 entries just return 0
-        if (numberOfSnapshots < 16) {
-            logger.info(">>>> insufficient data to predict...");
-            if (numberOfSnapshots > 0) {
-                int recent = numberOfSnapshots - 1;
-                int past = 0;
-                logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-                logger.info(">>>> ConnectionID: " + conn.getIdentifier());
-                logger.info(">>>> Date: " + aggregateSnapshots.get(past).getTimestamp().toString());
-                logger.info(">>>> prev queuedCount: " + aggregateSnapshots.get(past).getStatusMetrics().get(
-                    "queuedCount"));
-                logger.info(">>>> prev queuedBytes: " + aggregateSnapshots.get(past).getStatusMetrics().get(
-                    "queuedBytes"));
-                logger.info(">>>> Date: " + aggregateSnapshots.get(recent).getTimestamp().toString());
-                logger.info(">>>> current queuedCount: " + aggregateSnapshots.get(recent).getStatusMetrics().get(
-                    "queuedCount"));
-                logger.info(">>>> current queuedBytes: " + aggregateSnapshots.get(recent).getStatusMetrics().get(
-                    "queuedBytes"));
-                logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-            }
-            ttf[0] = 0L;
-            ttf[1] = 0L;
-        } else {
-            Long countThreshold =
-                Long.valueOf(conn.getFlowFileQueue().getBackPressureObjectThreshold());
-            logger.info(">>>> countThreshold: " + countThreshold);
-            String backPressureDataSizeThreshold = conn.getFlowFileQueue()
-                .getBackPressureDataSizeThreshold();
-            logger.info(">>>> backPressureDataSizeThreshold: " + backPressureDataSizeThreshold);
-            Long bytesThreshold = convertThresholdToBytes(backPressureDataSizeThreshold);
-            logger.info(">>>> bytesThreshold: " + bytesThreshold);
-
-            logger.info(">>>> get oldestSnapshot");
-            StatusSnapshotDTO oldestSnapshot = aggregateSnapshots.get(numberOfSnapshots - 16);
-            logger.info(">>>> Date: " + oldestSnapshot.getTimestamp().toString());
-            logger.info(">>>> get currentSnapshot");
-            StatusSnapshotDTO currentSnapshot = aggregateSnapshots.get(numberOfSnapshots - 1);
-            logger.info(">>>> Date: " + currentSnapshot.getTimestamp().toString());
-
-            long currentCount = currentSnapshot.getStatusMetrics().get("queuedCount");
-            long oldestCount = oldestSnapshot.getStatusMetrics().get("queuedCount");
-            logger.info(">>>> currentCount / prevCount: " + currentCount + " / " + oldestCount);
-            long currentBytes = currentSnapshot.getStatusMetrics().get("queuedBytes");
-            long oldestBytes = oldestSnapshot.getStatusMetrics().get("queuedBytes");
-            logger.info(">>>> currentBytes / prevBytes: " + currentBytes + " / " + oldestBytes);
-            long timeDeltaInMinutes = diffInMinutes(oldestSnapshot.getTimestamp(),
-                currentSnapshot.getTimestamp(), TimeUnit.MINUTES);
-            logger.info(">>>> delta: " + timeDeltaInMinutes);
-
-            ttf[0] = computeTimeToFailureCount(countThreshold, currentCount, oldestCount,
-                timeDeltaInMinutes) * 60 * 1000;
-            ttf[1] = computeTimeToFailureBytes(bytesThreshold, currentBytes, oldestBytes,
-                timeDeltaInMinutes) * 60 * 1000;
+        if (numberOfSnapshots < 1) {
+            logger.info(">>>> No snapshots yet...return default values");
+            return ttf;
         }
+
+        // Grab needed data for all calculations
+        Long countThreshold =
+            Long.valueOf(conn.getFlowFileQueue().getBackPressureObjectThreshold());
+        String backPressureDataSizeThreshold = conn.getFlowFileQueue()
+            .getBackPressureDataSizeThreshold();
+        Long bytesThreshold = convertThresholdToBytes(backPressureDataSizeThreshold);
+        logger.info(">>>> countThreshold: " + countThreshold);
+        logger.info(">>>> backPressureDataSizeThreshold: " + backPressureDataSizeThreshold);
+        logger.info(">>>> bytesThreshold: " + bytesThreshold);
+
+        // Would like 15 minutes prior to calculating, so if less than 15 entries
+        // calculate with what we have until then.
+        int current = numberOfSnapshots - 1;
+        int oldest = Math.max(0, numberOfSnapshots - 16);
+
+        StatusSnapshotDTO oldestSnapshot = aggregateSnapshots.get(oldest);
+        logger.info(">>>> Oldest Date: " + oldestSnapshot.getTimestamp().toString());
+        StatusSnapshotDTO currentSnapshot = aggregateSnapshots.get(current);
+        logger.info(">>>> Current Date: " + currentSnapshot.getTimestamp().toString());
+
+        long currentCount = currentSnapshot.getStatusMetrics().get("queuedCount");
+        long oldestCount = oldestSnapshot.getStatusMetrics().get("queuedCount");
+        logger.info(">>>> currentCount / prevCount: " + currentCount + " / " + oldestCount);
+
+        long currentBytes = currentSnapshot.getStatusMetrics().get("queuedBytes");
+        long oldestBytes = oldestSnapshot.getStatusMetrics().get("queuedBytes");
+        logger.info(">>>> currentBytes / prevBytes: " + currentBytes + " / " + oldestBytes);
+
+        long timeDeltaInMinutes = diffInMinutes(oldestSnapshot.getTimestamp(),
+            currentSnapshot.getTimestamp(), TimeUnit.MINUTES);
+        logger.info(">>>> delta: " + timeDeltaInMinutes);
+
+        if (timeDeltaInMinutes < 1) {
+            logger.info(">>>> time delta still 0...return default values");
+            return ttf;
+        }
+
+        long rawTTFCount = computeTimeToFailureCount(countThreshold, currentCount, oldestCount,
+            timeDeltaInMinutes);
+        long rawTTFBytes = computeTimeToFailureBytes(bytesThreshold, currentBytes, oldestBytes,
+            timeDeltaInMinutes);
+        logger.info(">>>> rawTTFCount: " + rawTTFCount);
+        logger.info(">>>> rawTTFCount: " + rawTTFBytes);
+
+        long ttfCountInMillis = rawTTFCount * 60 * 1000;
+        long ttfBytesInMillis = rawTTFBytes * 60 * 1000;
+
+        logger.info(">>>> ttfCountInMillis: " + ttfCountInMillis);
+        logger.info(">>>> ttfBytesInMillis: " + ttfBytesInMillis);
+
+        ttf[0] = Math.min(ttfCountInMillis, ALERT_THRESHOLD_MINUTES * 60 * 1000);
+        ttf[1] = Math.min(ttfBytesInMillis, ALERT_THRESHOLD_MINUTES * 60 * 1000);
+
+        logger.info(">>>> predicted count ttf: " + ttf[0] );
+        logger.info(">>>> predicted byte  ttf: " + ttf[1]);
+
         return ttf;
     }
 
@@ -682,40 +694,40 @@ public class StandardEventAccess implements UserAwareEventAccess {
 
     private long computeTimeToFailureCount(Long countThreshold, long current, long prev,
         long delta) {
+        final int ALERT_THRESHOLD_MINUTES = 240;
         // y = mx + b
         // y = countThreshold
         // b = currentCount
         // m = (current_val - prev_val) / time_delta
-        double slope = (current - prev) / delta;
+        double slope = (current - prev) / (double)delta;
         logger.info(">>>> countSlope: " + slope);
         double dttfCount;
         if (slope <= 0) {
-            logger.info(">>>> slope is 0 or negative...no worries of overflow");
-            dttfCount = -1;
+          logger.info(">>>> slope is 0 or negative (" + slope + ")...");
+            dttfCount = ALERT_THRESHOLD_MINUTES;
         } else {
             dttfCount = (countThreshold - current) / slope;
         }
-        logger.info(">>>> raw ttfCount: " + dttfCount);
         long ttfCount = (long)dttfCount;
         return ttfCount;
     }
 
     private long computeTimeToFailureBytes(Long bytesThreshold, long current, long prev,
         long delta) {
+        final int ALERT_THRESHOLD_MINUTES = 240;
         // y = mx + b
         // y = countThreshold
         // b = currentCount
         // m = (current_val - prev_val) / time_delta
-        double slope = (current - prev) / delta;
+        double slope = (current - prev) / (double)delta;
         logger.info(">>>> bytesSlope: " + slope);
         double dttfBytes;
         if (slope <= 0) {
-            dttfBytes = -1;
-            logger.info(">>>> slope is 0 or negative...no worries of overflow");
+            logger.info(">>>> slope is 0 or negative (" + slope + ")...");
+            dttfBytes = ALERT_THRESHOLD_MINUTES;
         } else {
             dttfBytes = (bytesThreshold - current) / slope;
         }
-        logger.info(">>>> raw ttfBytes: " + dttfBytes);
         long ttfBytes = (long)dttfBytes;
         return ttfBytes;
     }

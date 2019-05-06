@@ -20,11 +20,17 @@ import io.swagger.annotations.ApiModelProperty;
 
 import javax.xml.bind.annotation.XmlType;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * DTO for serializing the status of a connection.
  */
 @XmlType(name = "connectionStatusSnapshot")
 public class ConnectionStatusSnapshotDTO implements Cloneable {
+
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionStatusSnapshotDTO.class);
+
 
     private String id;
     private String groupId;
@@ -50,6 +56,7 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
     private Integer percentUseBytes;
     private Long timeToFailureBytes;
     private Long timeToFailureCount;
+    private String ttfValue;
 
     /* getters / setters */
     /**
@@ -81,7 +88,7 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
      */
     @ApiModelProperty("The name of the connection.")
     public String getName() {
-        return name;
+        return name + "2";
     }
 
     public void setName(String name) {
@@ -104,7 +111,9 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
      * @return Time in seconds to count overflow
      */
     @ApiModelProperty("The time in seconds until the queue count overflows")
-    public Long getTimeToFailureCount() { return timeToFailureCount; }
+    public Long getTimeToFailureCount() {
+        logger.info(">>>> ConnectionStatusSnapshotDTO.getTimeToFailureCount: " + timeToFailureCount);
+        return timeToFailureCount; }
 
     public void setTimeToFailureCount(Long timeToFailureCount) { this.timeToFailureCount =
         timeToFailureCount; }
@@ -142,6 +151,8 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
     public void setQueuedSize(String queuedSize) {
         this.queuedSize = queuedSize;
     }
+
+    public void setTTFTime(String ttf) { this.ttfValue = ttf;}
 
     /**
      * @return The total count and size of queued flow files
@@ -208,6 +219,10 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
         return input;
     }
 
+    @ApiModelProperty("The ttf time in count/bytes for the connection based on last 15 minutes")
+    public String getTTFTime() {
+        return ttfValue;
+    }
 
     /**
      * @return output for this connection
@@ -316,6 +331,7 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
         other.setPercentUseCount(getPercentUseCount());
         other.setTimeToFailureBytes(getTimeToFailureBytes());
         other.setTimeToFailureCount(getTimeToFailureCount());
+        other.setTTFTime(getTTFTime());
 
         return other;
     }

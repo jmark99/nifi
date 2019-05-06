@@ -70,7 +70,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class StatusMerger {
+
+    private static final Logger logger = LoggerFactory.getLogger(StatusMerger.class);
+
     private static final String ZERO_COUNT = "0";
     private static final String ZERO_BYTES = "0 bytes";
     private static final String ZERO_COUNT_AND_BYTES = "0 (0 bytes)";
@@ -167,11 +173,13 @@ public class StatusMerger {
         // sort by id
         final Map<String, ConnectionStatusSnapshotEntity> mergedConnectionMap = new HashMap<>();
         for (final ConnectionStatusSnapshotEntity status : replaceNull(target.getConnectionStatusSnapshots())) {
+            logger.info(">>>> mergeConnectionMap: " + status.getId() + " , " + status);
             mergedConnectionMap.put(status.getId(), status);
         }
 
         for (final ConnectionStatusSnapshotEntity statusToMerge : replaceNull(toMerge.getConnectionStatusSnapshots())) {
             ConnectionStatusSnapshotEntity merged = mergedConnectionMap.get(statusToMerge.getId());
+            logger.info(">>>> mergedConnectionMap2: " + statusToMerge.getId() + " , " + statusToMerge.clone());
             if (merged == null) {
                 mergedConnectionMap.put(statusToMerge.getId(), statusToMerge.clone());
                 continue;
@@ -484,6 +492,9 @@ public class StatusMerger {
         target.setBytesOut(target.getBytesOut() + toMerge.getBytesOut());
         target.setFlowFilesQueued(target.getFlowFilesQueued() + toMerge.getFlowFilesQueued());
         target.setBytesQueued(target.getBytesQueued() + toMerge.getBytesQueued());
+        logger.info(">>>> setting timeToFailureCount: " + target.getTimeToFailureCount());
+        target.setTimeToFailureBytes(target.getTimeToFailureBytes() + toMerge.getTimeToFailureBytes());
+        target.setTimeToFailureCount(target.getTimeToFailureCount() + toMerge.getTimeToFailureCount());
 
         if (target.getPercentUseBytes() == null) {
             target.setPercentUseBytes(toMerge.getPercentUseBytes());
@@ -505,6 +516,9 @@ public class StatusMerger {
         target.setQueuedSize(formatDataSize(target.getBytesQueued()));
         target.setInput(prettyPrint(target.getFlowFilesIn(), target.getBytesIn()));
         target.setOutput(prettyPrint(target.getFlowFilesOut(), target.getBytesOut()));
+        logger.info(">>>> target.setOutput: " + target.getFlowFilesOut() + " / " + target.getBytesOut());
+        target.setTTFTime(prettyPrint2(target.getTimeToFailureCount(),
+            target.getTimeToFailureBytes()));
     }
 
 
@@ -954,4 +968,12 @@ public class StatusMerger {
         return formatCount(count) + " (" + formatDataSize(bytes) + ")";
     }
 
+    public static String prettyPrint2(final Long count, final Long bytes) {
+        logger.info(">>>> prettyPrint2: " + count + " / " + bytes);
+        if (count != null && bytes != null && count == 0 && bytes == 0L) {
+            return ZERO_COUNT_AND_BYTES;
+        }
+
+        return count + " / " + bytes;
+    }
 }

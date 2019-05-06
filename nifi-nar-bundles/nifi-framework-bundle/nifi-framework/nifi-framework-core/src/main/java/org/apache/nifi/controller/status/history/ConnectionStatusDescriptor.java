@@ -68,7 +68,8 @@ public enum ConnectionStatusDescriptor {
         "Time to Failure (bytes)",
         "The predicted time to queue overload in bytes",
         Formatter.DURATION,
-        ConnectionStatus::getTimeToFailureBytes),
+        s -> Long.valueOf(s.getTimeToFailureBytes())),
+        //ConnectionStatus::getTimeToFailureBytes),
 
     TIME_TO_FAILURE_COUNT(
         "ttfCount",
