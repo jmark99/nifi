@@ -54,8 +54,8 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
     private String queuedCount;
     private Integer percentUseCount;
     private Integer percentUseBytes;
-    private Long timeToFailureBytes;
-    private Long timeToFailureCount;
+    private Long timeToFailureBytes = 0L;
+    private Long timeToFailureCount = 0L;
     private String ttfValue;
 
     /* getters / setters */

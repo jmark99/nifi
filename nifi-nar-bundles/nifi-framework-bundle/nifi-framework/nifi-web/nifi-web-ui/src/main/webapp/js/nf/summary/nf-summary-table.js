@@ -2790,7 +2790,8 @@
                         queuedSize: snapshot.queuedSize,
                         percentUseCount: snapshot.percentUseCount,
                         percentUseBytes: snapshot.percentUseBytes,
-                        output: snapshot.output
+                        output: snapshot.output,
+                        ttftime: snapshot.ttftime
                     });
                 });
 

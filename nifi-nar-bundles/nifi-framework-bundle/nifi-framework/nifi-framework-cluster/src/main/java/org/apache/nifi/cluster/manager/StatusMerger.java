@@ -519,6 +519,7 @@ public class StatusMerger {
         logger.info(">>>> target.setOutput: " + target.getFlowFilesOut() + " / " + target.getBytesOut());
         target.setTTFTime(prettyPrint2(target.getTimeToFailureCount(),
             target.getTimeToFailureBytes()));
+        logger.info(">>>> *** target.setTTFTime: " + target.getTimeToFailureCount() + " / " + target.getTimeToFailureBytes());
     }
 
 
