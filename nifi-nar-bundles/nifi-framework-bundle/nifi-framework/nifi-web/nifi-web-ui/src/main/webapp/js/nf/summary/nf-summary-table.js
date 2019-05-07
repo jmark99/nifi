@@ -3055,7 +3055,10 @@
                     nfStatusHistory.init(configDetails.timeOffset);
 
                     // initialize the processor/connection details dialog
-                    nfProcessorDetails.init(false);
+                    nfProcessorDetails.init({
+                        supportsGoTo : false,
+                        supportsStatusBar : false
+                    });
                     nfConnectionDetails.init();
                     initSummaryTable(isClustered);
 
