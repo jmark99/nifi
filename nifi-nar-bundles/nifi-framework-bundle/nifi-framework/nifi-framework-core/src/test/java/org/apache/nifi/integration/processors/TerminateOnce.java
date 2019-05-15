@@ -14,32 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.processors.kafka.pubsub;
+package org.apache.nifi.integration.processors;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
+import org.apache.nifi.flowfile.FlowFile;
+import org.apache.nifi.processor.AbstractProcessor;
+import org.apache.nifi.processor.ProcessContext;
+import org.apache.nifi.processor.ProcessSession;
+import org.apache.nifi.processor.exception.ProcessException;
 
-import sun.misc.Unsafe;
-
-class TestUtils {
-
-    public static void setFinalField(Field field, Object instance, Object newValue) throws Exception {
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-
-        field.set(instance, newValue);
-    }
-
-    static Unsafe getUnsafe() {
-        try {
-            Field f = Unsafe.class.getDeclaredField("theUnsafe");
-            f.setAccessible(true);
-            return (Unsafe) f.get(null);
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
+public class TerminateOnce extends AbstractProcessor {
+    @Override
+    public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
+        FlowFile flowFile = session.get();
+        if (flowFile != null) {
+            session.remove(flowFile);
         }
     }
-
 }
