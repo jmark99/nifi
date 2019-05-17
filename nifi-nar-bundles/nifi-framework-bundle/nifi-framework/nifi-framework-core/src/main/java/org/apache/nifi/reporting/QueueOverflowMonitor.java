@@ -1,17 +1,209 @@
 package org.apache.nifi.reporting;
 
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.commons.lang3.time.DateUtils;
 import org.apache.nifi.connectable.Connection;
+import org.apache.nifi.controller.FlowController;
+import org.apache.nifi.controller.queue.FlowFileSummary;
+import org.apache.nifi.controller.queue.ListFlowFileState;
+import org.apache.nifi.controller.queue.ListFlowFileStatus;
+import org.apache.nifi.controller.queue.QueueSize;
+import org.apache.nifi.util.NiFiProperties;
+import org.apache.nifi.web.api.dto.status.StatusSnapshotDTO;
 
 public final class QueueOverflowMonitor {
 
-    private static long timeToByteOverflow;
-    private static long timeToCountOverflow;
+    private static final Logger logger = LoggerFactory.getLogger(QueueOverflowMonitor.class);
+
+    private static long timeToByteOverflow = 3L;
+    private static long timeToCountOverflow = 5L;
+    private static int alertThreshold;
+    private static int windowSize;
+    private static int offset;
 
     private QueueOverflowMonitor() {}
 
-    public static void computeOverflowEstimate(Connection conn) {
-      timeToByteOverflow = 3L;
-      timeToCountOverflow = 5L;
+    public static void computeOverflowEstimate(Connection conn, int threshold, int window,
+        FlowController flowController) {
+      logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+      logger.info(">>>> Compute time to fail for Connection: " + conn.getName());
+
+      alertThreshold = threshold;
+      windowSize = window;
+      offset = Math.abs(windowSize) + 1;
+
+      // We are going to get the data for the current/latest statusHistory event as well as the
+      // the statusHistory event 'window' minutes prior
+      Date currentTime = new Date();
+      Date previousTime = DateUtils.addMinutes(currentTime, -(windowSize) - 1);
+
+      logger.info(">>>> prevTime:    " + previousTime.toString());
+      logger.info(">>>> currentTime: " + currentTime.toString());
+
+      // retrieve the last 'offset' snapshots. Only collect from previousTime to latest with
+      // a max of 'offset' items.
+      List<StatusSnapshotDTO> aggregateSnapshots = flowController
+          .getConnectionStatusHistory(conn.getIdentifier(), previousTime, null, offset)
+          .getAggregateSnapshots();
+
+      int numberOfSnapshots = aggregateSnapshots.size();
+      logger.info(">>>> numberOfSnapshots: " + numberOfSnapshots);
+
+      logger.info(">>>> Retrieved Snapshots:");
+      for (StatusSnapshotDTO dto : aggregateSnapshots) {
+        logger.info(">>>> date: " + dto.getTimestamp().toString() +
+            dto.getStatusMetrics());
+        Map<String,Long> statusMetrics = dto.getStatusMetrics();
+        logger.info(">>>> metrics: " + statusMetrics.toString());
+      }
+
+      if (numberOfSnapshots < 2) {
+        logger.info(">>>> Not enough snapshots (" + numberOfSnapshots + ")...return "
+            + "default values: " + timeToCountOverflow + "/" + timeToByteOverflow);
+        return;
+      }
+
+      // Grab needed data for all calculations
+      Long countThreshold =
+          Long.valueOf(conn.getFlowFileQueue().getBackPressureObjectThreshold());
+      String backPressureDataSizeThreshold = conn.getFlowFileQueue()
+          .getBackPressureDataSizeThreshold();
+      Long bytesThreshold = convertThresholdToBytes(backPressureDataSizeThreshold);
+
+      logger.info(">>>> countThreshold: " + countThreshold);
+      logger.info(">>>> backPressureDataSizeThreshold: " + backPressureDataSizeThreshold);
+      logger.info(">>>> bytesThreshold: " + bytesThreshold);
+
+      // Would like HISTORY minutes prior to calculating, so if less than HISTORY entries
+      // calculate with what we have until then.
+      int current = numberOfSnapshots - 1;
+      int oldest = Math.max(0, numberOfSnapshots - offset);
+
+      StatusSnapshotDTO oldestSnapshot = aggregateSnapshots.get(oldest);
+      logger.info(">>>> Oldest Date: " + oldestSnapshot.getTimestamp().toString());
+      StatusSnapshotDTO currentSnapshot = aggregateSnapshots.get(current);
+      logger.info(">>>> Current Date: " + currentSnapshot.getTimestamp().toString());
+
+      long currentCount = currentSnapshot.getStatusMetrics().get("queuedCount");
+      long oldestCount = oldestSnapshot.getStatusMetrics().get("queuedCount");
+      logger.info(">>>> prevCount / currentCount : " + oldestCount + " / " + currentCount);
+
+      long currentBytes = currentSnapshot.getStatusMetrics().get("queuedBytes");
+      long oldestBytes = oldestSnapshot.getStatusMetrics().get("queuedBytes");
+      logger.info(">>>> prevBytes / currentBytes: " + oldestBytes + " / " + currentBytes);
+
+      long timeDeltaInMinutes = diffInMinutes(oldestSnapshot.getTimestamp(),
+          currentSnapshot.getTimestamp(), TimeUnit.MINUTES);
+      logger.info(">>>> delta: " + timeDeltaInMinutes);
+
+      if (timeDeltaInMinutes < 1) {
+        logger.info(">>>> time delta still 0...return default values");
+        return;
+      }
+
+      long rawTTFCount = computeTimeToFailureCount(countThreshold, currentCount, oldestCount,
+          timeDeltaInMinutes);
+      long rawTTFBytes = computeTimeToFailureBytes(bytesThreshold, currentBytes, oldestBytes,
+          timeDeltaInMinutes);
+      logger.info(">>>> rawTTFCount: " + rawTTFCount);
+      logger.info(">>>> rawTTFCount: " + rawTTFBytes);
+
+      long ttfCountInMillis = rawTTFCount * 60 * 1000;
+      long ttfBytesInMillis = rawTTFBytes * 60 * 1000;
+
+      logger.info(">>>> ttfCountInMillis: " + ttfCountInMillis);
+      logger.info(">>>> ttfBytesInMillis: " + ttfBytesInMillis);
+
+      if (currentCount == countThreshold) {
+        timeToCountOverflow = 0;
+      } else {
+        timeToCountOverflow = Math.min(ttfCountInMillis, alertThreshold * 60 * 1000);
+      }
+
+      if (currentBytes == bytesThreshold) {
+        timeToByteOverflow = 0;
+      } else {
+        timeToByteOverflow = Math.min(ttfBytesInMillis, alertThreshold * 60 * 1000);
+      }
+
+      logger.info(">>>> predicted count ttf: " + timeToCountOverflow );
+      logger.info(">>>> predicted byte  ttf: " + timeToByteOverflow);
+
+      return;
+    }
+
+    private static long convertThresholdToBytes(String backPressureDataSizeThreshold) {
+      final long BYTES_IN_KILOBYTE = 1024L;
+      final long BYTES_IN_MEGABYTE = 1048576L;
+      final long BYTES_IN_GIGABYTE = 1073741824L;
+      final long BYTES_IN_TERABYTE = 1099511627776L;
+      long bytes;
+
+      String[] threshold = backPressureDataSizeThreshold.split("\\s+");
+      if (threshold[1].toLowerCase().contains("tb")) {
+        bytes = Long.valueOf(threshold[0]) * BYTES_IN_TERABYTE;
+      } else if (threshold[1].toLowerCase().contains("gb")) {
+        bytes = Long.valueOf(threshold[0]) * BYTES_IN_GIGABYTE;
+      } else if (threshold[1].toLowerCase().contains("mb")) {
+        bytes = Long.valueOf(threshold[0]) * BYTES_IN_MEGABYTE;
+      } else if (threshold[1].toLowerCase().contains("kb")) {
+        bytes = Long.valueOf(threshold[0]) * BYTES_IN_KILOBYTE;
+      } else {
+        bytes = Long.valueOf(threshold[0]);
+      }
+      return bytes;
+    }
+
+    private static long diffInMinutes(Date date1, Date date2, TimeUnit timeUnit) {
+      long diffInMillis = date2.getTime() - date1.getTime();
+      return timeUnit.convert(diffInMillis, TimeUnit.MILLISECONDS);
+    }
+
+    private static long computeTimeToFailureCount(Long countThreshold, long current, long prev,
+        long delta) {
+      final int ALERT_THRESHOLD_MINUTES = 240;
+      // y = mx + b
+      // y = countThreshold
+      // b = currentCount
+      // m = (current_val - prev_val) / time_delta
+      double slope = (current - prev) / (double)delta;
+      logger.info(">>>> countSlope: " + slope);
+      double dttfCount;
+      if (slope <= 0) {
+        logger.info(">>>> slope is 0 or negative (" + slope + ")...");
+        dttfCount = ALERT_THRESHOLD_MINUTES;
+      } else {
+        dttfCount = (countThreshold - current) / slope;
+      }
+      long ttfCount = (long)dttfCount;
+      return ttfCount;
+    }
+
+    private static long computeTimeToFailureBytes(Long bytesThreshold, long current, long prev,
+        long delta) {
+      final int ALERT_THRESHOLD_MINUTES = 240;
+      // y = mx + b
+      // y = countThreshold
+      // b = currentCount
+      // m = (current_val - prev_val) / time_delta
+      double slope = (current - prev) / (double)delta;
+      logger.info(">>>> bytesSlope: " + slope);
+      double dttfBytes;
+      if (slope <= 0) {
+        logger.info(">>>> slope is 0 or negative (" + slope + ")...");
+        dttfBytes = ALERT_THRESHOLD_MINUTES;
+      } else {
+        dttfBytes = (bytesThreshold - current) / slope;
+      }
+      long ttfBytes = (long)dttfBytes;
+      return ttfBytes;
     }
 
     public static long getTimeToByteOverflow() {
@@ -20,6 +212,10 @@ public final class QueueOverflowMonitor {
 
     public static long getTimeToCountOverflow() {
       return timeToCountOverflow;
+    }
+
+    public static int getAlertThresholdInMinutes() {
+      return alertThreshold;
     }
 }
 

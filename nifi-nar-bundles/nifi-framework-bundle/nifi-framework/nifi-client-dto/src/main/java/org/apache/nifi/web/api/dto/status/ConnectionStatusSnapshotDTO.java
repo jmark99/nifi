@@ -112,7 +112,8 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
      */
     @ApiModelProperty("The time in seconds until the queue count overflows")
     public Long getTimeToFailureCount() {
-        logger.info(">>>> ConnectionStatusSnapshotDTO.getTimeToFailureCount: " + timeToFailureCount);
+        //// logger.info(">>>> ConnectionStatusSnapshotDTO.getTimeToFailureCount: " +
+        // timeToFailureCount);
         return timeToFailureCount; }
 
     public void setTimeToFailureCount(Long timeToFailureCount) { this.timeToFailureCount =

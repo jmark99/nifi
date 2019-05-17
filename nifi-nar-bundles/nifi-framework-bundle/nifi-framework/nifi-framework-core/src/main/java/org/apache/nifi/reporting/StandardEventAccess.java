@@ -18,7 +18,6 @@ package org.apache.nifi.reporting;
 
 import org.apache.commons.collections4.Predicate;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.DateUtils;
 import org.apache.nifi.action.Action;
 import org.apache.nifi.authorization.RequestAction;
 import org.apache.nifi.authorization.resource.Authorizable;
@@ -56,14 +55,11 @@ import org.apache.nifi.registry.flow.VersionControlInformation;
 import org.apache.nifi.remote.RemoteGroupPort;
 import org.apache.nifi.remote.RootGroupPort;
 import org.apache.nifi.util.NiFiProperties;
-import org.apache.nifi.web.api.dto.status.StatusSnapshotDTO;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -376,9 +372,13 @@ public class StandardEventAccess implements UserAwareEventAccess {
             final long connectionQueuedBytes = queueSize.getByteCount();
 
             // TODO
-            QueueOverflowMonitor.computeOverflowEstimate(conn);
+            QueueOverflowMonitor.computeOverflowEstimate(conn,
+                properties.getStatusHistoryThresholdAlert(), 5, flowController);
             timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
             timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
+            logger.info(">>>> timeToFailureBytes: " + timeToFailureBytes);
+            logger.info(">>>> timeToFailureCount: " + timeToFailureCount);
+            logger.info(">>>> alert threshold:    " + properties.getStatusHistoryThresholdAlert());
 
 //            long [] timeToFailure = computeTimeToFailure(conn);
 //            timeToFailureBytes = timeToFailure[1];

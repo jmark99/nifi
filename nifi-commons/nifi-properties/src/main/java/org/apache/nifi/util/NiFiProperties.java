@@ -313,7 +313,7 @@ public abstract class NiFiProperties {
 
 
     public int getStatusHistoryThresholdAlert() {
-        return getIntegerProperty(STATUS_HISTORY_ALERT_THRESHOLD, 120);
+        return getIntegerProperty(STATUS_HISTORY_ALERT_THRESHOLD, 180);
     }
 
 
