@@ -55,9 +55,9 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
     public static final String NUM_DATA_POINTS_PROPERTY = "nifi.components.status.repository.buffer.size";
     public static final int DEFAULT_NUM_DATA_POINTS = 288;   // 1 day worth of 5-minute snapshots
 
-    private final Map<String, ComponentStatusHistory> componentStatusHistories = new HashMap<>();
+    protected final Map<String, ComponentStatusHistory> componentStatusHistories = new HashMap<>();
 
-    private final RingBuffer<Date> timestamps;
+    protected final RingBuffer<Date> timestamps;
     private final RingBuffer<List<GarbageCollectionStatus>> gcStatuses;
     private final int numDataPoints;
     private volatile long lastCaptureTime = 0L;
@@ -150,12 +150,12 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
 
     @Override
     public StatusHistory getConnectionStatusHistory(final String connectionId, final Date start, final Date end, final int preferredDataPoints) {
-        String theCall = String
-            .format(">>>> StatusHistory.getConnectionStatusHistory(%s, %s, %s, %d", connectionId,
-                start == null ? "null" : start.toString(),
-                end == null ? "null" : end.toString(), preferredDataPoints);
-        logger.info(theCall);
-        return getStatusHistory(connectionId, true, DEFAULT_CONNECTION_METRICS);
+        if (start != null || end != null || preferredDataPoints != Integer.MAX_VALUE) {
+            return getStatusHistory(connectionId, true, DEFAULT_CONNECTION_METRICS,
+                start, end, preferredDataPoints);
+        } else {
+            return getStatusHistory(connectionId, true, DEFAULT_CONNECTION_METRICS);
+        }
     }
 
     @Override
@@ -176,6 +176,49 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
         }
 
         final List<Date> dates = timestamps.asList();
+        return history.toStatusHistory(dates, includeCounters, defaultMetricDescriptors);
+    }
+
+    private synchronized StatusHistory getStatusHistory(final String componentId,
+        final boolean includeCounters, final Set<MetricDescriptor<?>> defaultMetricDescriptors,
+        final Date start, final Date end, final int preferredDataPoints) {
+
+        final ComponentStatusHistory history = componentStatusHistories.get(componentId);
+        if (history == null) {
+            return createEmptyStatusHistory();
+        }
+
+        Date startDate, endDate;
+        if (start == null) {
+            // set to old date
+            startDate = new Date(0L);
+        } else {
+            startDate = start;
+        }
+        if (end == null) {
+            // use current date
+            endDate = new Date();
+        } else {
+            endDate = end;
+        }
+
+        timestamps.asList().forEach(p -> logger.info(">>>>\ttimestamp: " + p.toString()));
+
+        // Limit date information to a subset based upon method parameters
+        List<Date> limitedDates =
+            timestamps.asList()
+                .stream()
+                .filter(p -> (p.equals(startDate) || p.after(startDate))
+                    &&  p.before(endDate)).collect(Collectors.toList());
+
+        logger.info(">>>> START: " + startDate.toString());
+        logger.info(">>>> END:   " + endDate.toString());
+
+        // if preferredDataPoints supplied, limit dates to more recent preferredDataPoint value.
+        final List<Date> dates = limitedDates.
+            subList(Math.max(limitedDates.size() - preferredDataPoints, 0), limitedDates.size());
+
+        dates.forEach(p -> logger.info(">>>>\tdates: " + p.toString()));
         return history.toStatusHistory(dates, includeCounters, defaultMetricDescriptors);
     }
 
