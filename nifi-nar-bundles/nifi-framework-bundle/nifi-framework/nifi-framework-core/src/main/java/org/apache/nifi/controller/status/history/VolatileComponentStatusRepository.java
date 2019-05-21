@@ -202,7 +202,8 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
             endDate = end;
         }
 
-        timestamps.asList().forEach(p -> logger.info(">>>>\ttimestamp: " + p.toString()));
+        // TODO test times for getting all vs filtering
+        //timestamps.asList().forEach(p -> logger.info(">>>>\ttimestamp: " + p.toString()));
 
         // Limit date information to a subset based upon method parameters
         List<Date> limitedDates =
@@ -211,14 +212,14 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
                 .filter(p -> (p.equals(startDate) || p.after(startDate))
                     &&  p.before(endDate)).collect(Collectors.toList());
 
-        logger.info(">>>> START: " + startDate.toString());
-        logger.info(">>>> END:   " + endDate.toString());
+//        logger.info(">>>> START: " + startDate.toString());
+//        logger.info(">>>> END:   " + endDate.toString());
 
         // if preferredDataPoints supplied, limit dates to more recent preferredDataPoint value.
         final List<Date> dates = limitedDates.
             subList(Math.max(limitedDates.size() - preferredDataPoints, 0), limitedDates.size());
 
-        dates.forEach(p -> logger.info(">>>>\tdates: " + p.toString()));
+        //dates.forEach(p -> logger.info(">>>>\tdates: " + p.toString()));
         return history.toStatusHistory(dates, includeCounters, defaultMetricDescriptors);
     }
 
