@@ -15,10 +15,13 @@ import org.apache.nifi.connectable.Connection;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.web.api.dto.status.StatusSnapshotDTO;
 
+// We will go back 'windowSize' minutes and obtain the information for the connection at that
+// time and compare the delta's between the byte and file count values. Using that information
+// we will model a line using the standard y=mx+b formula to determine when this connection
+// would overflow the queue thresholds if the data continued coming in at this rate.
 final class QueueOverflowMonitor {
 
     private static final Logger logger = LoggerFactory.getLogger(QueueOverflowMonitor.class);
-
     private static long timeToByteOverflow;
     private static long timeToCountOverflow;
     private static long alertThreshold;
@@ -29,25 +32,16 @@ final class QueueOverflowMonitor {
       logger.info(">>>> Compute time to fail for Connection: " + conn.getName());
 
       alertThreshold = (long) threshold;
-      logger.info(">>>> alertThreshold = " + alertThreshold);
-
       timeToCountOverflow = alertThreshold;
       timeToByteOverflow = alertThreshold;
       int offset = Math.abs(window) + 1;
 
-      // We will go back 'windowSize' minutes and obtain the information for the connection at that
-      // time and compare the delta's between the byte and file count values. Using that information
-      // we will model a line using the standard y=mx+b formula to determine when this connection
-      // would overflow the queue thresholds if the data continued coming in at this rate.
-
-      // - get current time
+      // - get current time and determine time, 'windowSize' minutes in the past.
       Date endTime = new Date();
-
-      // - determine time, 'windowSize' minutes in the past.
       Date startTime = DateUtils.addMinutes(endTime, -offset);
 
-      logger.info(">>>> startTime: " + startTime.toString());
-      logger.info(">>>> endTime:   " + endTime.toString());
+      //String pattern = "yyyy-MM-dd hh:mm:ss";
+      //SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
 
       // Using those times we will get the statusHistory information corresponding to the
       // oldest history up to current-windowSize and the latest history time.
@@ -55,61 +49,48 @@ final class QueueOverflowMonitor {
           .getConnectionStatusHistory(conn.getIdentifier(), startTime, null, offset)
           .getAggregateSnapshots();
 
-      if (snapshots.size() > 0) {
-        logSnapshots(snapshots);
-      }
-
       int numberOfSnapshots = snapshots.size();
-      logger.info(">>>> number of snapshots: " + numberOfSnapshots);
-
-      // We must have at least 2 snapshots in order to do any type of calculation.
 
       // If less than 2 snapshots, set ttf to alertThreshold
       if (numberOfSnapshots < 2) {
-        timeToCountOverflow = 0L;
-        timeToByteOverflow = 0L;
-        logger.info(">>>> numberOfSnapshots: " + numberOfSnapshots +"; (" + timeToByteOverflow +
-            ", " + timeToCountOverflow  + ")");
+        timeToCountOverflow = alertThreshold;
+        timeToByteOverflow = alertThreshold;
+        //logger.info(">>>> numberOfSnapshots: " + numberOfSnapshots +"; (" + timeToByteOverflow +
+        //    ", " + timeToCountOverflow  + ")");
         return;
       }
-      // else
       // get threshold information
       long maxFiles = conn.getFlowFileQueue().getBackPressureObjectThreshold();
-
       String maxBytesAsString = conn.getFlowFileQueue().getBackPressureDataSizeThreshold();
       long maxBytes = convertThresholdToBytes(maxBytesAsString);
 
-      logger.info(">>>> maxBytesAsString: " + maxBytesAsString);
-      logger.info(">>>> maxBytes:         " + maxBytes);
-      logger.info(">>>> maxFiles:         " + maxFiles);
+      logger.info(">>>> Threshold Values: (" + maxBytesAsString + " - " + maxBytes + ") / " + maxFiles);
 
       int current = numberOfSnapshots - 1;
       int oldest = Math.max(0, numberOfSnapshots - offset);
 
-      logger.info(">>>> oldest  idx: " + oldest);
-      logger.info(">>>> current idx: " + current);
+      //logger.info(">>>> snapshot indexes: " + oldest + " to " + current);
 
-      // Would like HISTORY minutes prior to calculating, so if less than HISTORY entries
-      // calculate with what we have until then.
+      // Would like snapshots 'window' minutes prior to calculating, so if less than 'window'
+      // entries calculate with what we have until then 'window' size reached.
       StatusSnapshotDTO startSnapshot = snapshots.get(oldest);
       StatusSnapshotDTO endSnapshot = snapshots.get(current);
 
-      logger.info(">>>> start Date: " + startSnapshot.getTimestamp().toString());
-      logger.info(">>>> end Date:   " + endSnapshot.getTimestamp().toString());
+      //String formattedDate = simpleDateFormat.format(startSnapshot.getTimestamp());
+      //logger.info(">>>> oldest snapshot time: " + formattedDate);
+      //formattedDate = simpleDateFormat.format(endSnapshot.getTimestamp());
+      //logger.info(">>>> newest snapshot time: " + formattedDate);
 
       long prevBytes = startSnapshot.getStatusMetrics().get("queuedBytes");
       long currentBytes = endSnapshot.getStatusMetrics().get("queuedBytes");
       long prevCount = startSnapshot.getStatusMetrics().get("queuedCount");
       long currentCount = endSnapshot.getStatusMetrics().get("queuedCount");
 
-      // determine current timeDelta. This should eventually be windowSize, but until that much time
-      // has passed it could be less.
+      // determine current timeDelta.
       long timeDeltaInMinutes = diffInMinutes(startSnapshot.getTimestamp(),
           endSnapshot.getTimestamp());
-      logger.info(">>>> delta: " + timeDeltaInMinutes);
 
       if (timeDeltaInMinutes < 1) {
-        logger.info(">>>> time delta still 0");
         return;
       }
       computeTimeToFailureBytes(maxBytes, currentBytes, prevBytes, timeDeltaInMinutes);
@@ -118,11 +99,15 @@ final class QueueOverflowMonitor {
 
   private static void logSnapshots(List<StatusSnapshotDTO> snapshots) {
     logger.info(">>>> Retrieved Snapshots:");
+    int filter = 0;
     for (StatusSnapshotDTO dto : snapshots) {
-      logger.info(">>>> date: " + dto.getTimestamp().toString());
-      Map<String,Long> statusMetrics = dto.getStatusMetrics();
-      logger.info(">>>>\tqueuedCount / queuedBytes ==> " + statusMetrics.get("queuedCount") + " / "
-          + statusMetrics.get("queuedBytes"));
+      if (filter == 0 || filter == snapshots.size()-1) {
+        logger.info(">>>> date: " + dto.getTimestamp().toString());
+        Map<String,Long> statusMetrics = dto.getStatusMetrics();
+        logger.info(
+            ">>>>\tqueuedCount / queuedBytes ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
+      }
+      filter++;
     }
   }
 
@@ -153,20 +138,14 @@ final class QueueOverflowMonitor {
       return TimeUnit.MINUTES.convert(diffInMillis, TimeUnit.MILLISECONDS);
     }
 
-    private static void computeTimeToFailureBytes(Long threshold, long current, long prev,
+    private static void computeTimeToFailureBytes(long limit, long current, long prev,
         long delta) {
-        timeToByteOverflow = computeTimeToFailure(threshold, current, prev, delta);
-        if (timeToByteOverflow == 0L) {
-          timeToCountOverflow = 0L;
-        }
+        timeToByteOverflow = computeTimeToFailure(limit, current, prev, delta);
     }
 
-    private static void computeTimeToFailureFiles(Long threshold, long current, long prev,
+    private static void computeTimeToFailureFiles(long threshold, long current, long prev,
       long delta) {
       timeToCountOverflow = computeTimeToFailure(threshold, current, prev, delta);
-      if (timeToCountOverflow == 0L) {
-        timeToByteOverflow = 0L;
-      }
   }
 
     // y = mx + b
@@ -175,32 +154,31 @@ final class QueueOverflowMonitor {
     // b = current value of bytes/count
     // solve for x
     private static long computeTimeToFailure(Long overflowLimit, long current, long prev, long delta) {
-        logger.info(">>>> Enter ComputeTimeToFailure....");
-        logger.info(">>>>\t overflowMax: " + overflowLimit);
-        logger.info(">>>>\t prev:        " + prev);
-        logger.info(">>>>\t current:     " + current);
-        logger.info(">>>>\t delta:       " + delta);
+        //logger.info(">>>> ----> (prev / current) -> (" + prev + " / " + current + "), time delta:"
+        //    + " " + delta);
 
-        if (current == overflowLimit) {
-          logger.info(">>>> current == threshold");
+        // if the threshold has been met or exceeded then set graph to 0.
+        if (current >= overflowLimit) {
+          //logger.info(">>>> current == threshold");
           return 0L;
         }
 
+        // make sure not dividing by zero
         if (delta <= 0L) {
-          logger.info(">>>> ERROR this should not happen (delta == 0)");
+          //logger.info(">>>> delta == 0, setting to alertThreshold");
           return alertThreshold;
         }
 
         double slope = (current - prev) / (double)delta;
+        //logger.info(">>>> slope: " + slope);
 
         if (slope <= 0) {
-          logger.info(">>>> slope <= 0");
           return alertThreshold;
         }
-        logger.info(">>>> slope: " + slope);
 
         double ttf = (overflowLimit - current) / slope;
-        logger.info(">>>> ttf -> " + ttf + " = (" + overflowLimit + " - " + current + ") / " + slope);
+        //logger.info(">>>> ttf -> " + ttf + " = (" + overflowLimit + " - " + current + ") / " +
+        //  slope);
 
         BigDecimal bd = new BigDecimal(Double.toString(ttf));
         ttf = bd.setScale(0, RoundingMode.HALF_UP).doubleValue();
@@ -212,11 +190,13 @@ final class QueueOverflowMonitor {
 
     static long getTimeToByteOverflow() {
       timeToByteOverflow = Math.min(timeToByteOverflow, alertThreshold);
+      // return as milliseconds
       return timeToByteOverflow * 1000 * 60;
     }
 
     static long getTimeToCountOverflow() {
       timeToCountOverflow = Math.min(timeToCountOverflow, alertThreshold);
+      // return as milliseconds
       return timeToCountOverflow * 1000 * 60;
     }
 }
