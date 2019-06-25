@@ -50,8 +50,8 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -511,7 +511,7 @@ public class JwtServiceTest {
     public void testLogoutWhenAuthTokenIsEmptyShouldThrowError() throws Exception {
         // Arrange
         expectedException.expect(JwtException.class);
-        expectedException.expectMessage("Log out failed: The required Authorization header was not present in the request to log out user.");
+        expectedException.expectMessage("Log out failed: The user identity was not present in the request token to log out user.");
 
         // Act
         jwtService.logOut(null);
@@ -519,6 +519,5 @@ public class JwtServiceTest {
         // Assert
         // Should throw exception when authorization header is null
     }
-
 
 }

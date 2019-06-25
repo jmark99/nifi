@@ -122,7 +122,6 @@ import org.apache.nifi.registry.flow.mapping.InstantiatedVersionedProcessor;
 import org.apache.nifi.registry.flow.mapping.InstantiatedVersionedRemoteGroupPort;
 import org.apache.nifi.registry.flow.mapping.NiFiRegistryFlowMapper;
 import org.apache.nifi.remote.RemoteGroupPort;
-import org.apache.nifi.remote.RootGroupPort;
 import org.apache.nifi.reporting.Bulletin;
 import org.apache.nifi.reporting.BulletinQuery;
 import org.apache.nifi.reporting.BulletinRepository;
@@ -3088,7 +3087,7 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
      * authorized for the transfer. This method is only invoked when obtaining the site to site
      * details so the entire chain isn't necessary.
      */
-    private boolean isUserAuthorized(final NiFiUser user, final RootGroupPort port) {
+    private boolean isUserAuthorized(final NiFiUser user, final Port port) {
         final boolean isSiteToSiteSecure = Boolean.TRUE.equals(properties.isSiteToSiteSecure());
 
         // if site to site is not secure, allow all users
@@ -3128,8 +3127,7 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
 
         // serialize the input ports this NiFi has access to
         final Set<PortDTO> inputPortDtos = new LinkedHashSet<>();
-        final Set<RootGroupPort> inputPorts = controllerFacade.getInputPorts();
-        for (final RootGroupPort inputPort : inputPorts) {
+        for (final Port inputPort : controllerFacade.getPublicInputPorts()) {
             if (isUserAuthorized(user, inputPort)) {
                 final PortDTO dto = new PortDTO();
                 dto.setId(inputPort.getIdentifier());
@@ -3142,7 +3140,7 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
 
         // serialize the output ports this NiFi has access to
         final Set<PortDTO> outputPortDtos = new LinkedHashSet<>();
-        for (final RootGroupPort outputPort : controllerFacade.getOutputPorts()) {
+        for (final Port outputPort : controllerFacade.getPublicOutputPorts()) {
             if (isUserAuthorized(user, outputPort)) {
                 final PortDTO dto = new PortDTO();
                 dto.setId(outputPort.getIdentifier());
@@ -3755,15 +3753,19 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
 
     @Override
     public VersionControlComponentMappingEntity registerFlowWithFlowRegistry(final String groupId, final StartVersionControlRequestEntity requestEntity) {
-        final ProcessGroup processGroup = processGroupDAO.getProcessGroup(groupId);
+        final VersionedFlowDTO versionedFlowDto = requestEntity.getVersionedFlow();
 
-        final VersionControlInformation currentVci = processGroup.getVersionControlInformation();
-        final int expectedVersion = currentVci == null ? 1 : currentVci.getVersion() + 1;
+        int snapshotVersion;
+        if (VersionedFlowDTO.FORCE_COMMIT_ACTION.equals(versionedFlowDto.getAction())) {
+            snapshotVersion = -1;
+        } else {
+            final ProcessGroup processGroup = processGroupDAO.getProcessGroup(groupId);
+            final VersionControlInformation currentVci = processGroup.getVersionControlInformation();
+            snapshotVersion = currentVci == null ? 1 : currentVci.getVersion() + 1;
+        }
 
         // Create a VersionedProcessGroup snapshot of the flow as it is currently.
         final InstantiatedVersionedProcessGroup versionedProcessGroup = createFlowSnapshot(groupId);
-
-        final VersionedFlowDTO versionedFlowDto = requestEntity.getVersionedFlow();
         final String flowId = versionedFlowDto.getFlowId() == null ? UUID.randomUUID().toString() : versionedFlowDto.getFlowId();
 
         final VersionedFlow versionedFlow = new VersionedFlow();
@@ -3795,7 +3797,7 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
 
         try {
             // add a snapshot to the flow in the registry
-            registeredSnapshot = registerVersionedFlowSnapshot(registryId, registeredFlow, versionedProcessGroup, versionedFlowDto.getComments(), expectedVersion);
+            registeredSnapshot = registerVersionedFlowSnapshot(registryId, registeredFlow, versionedProcessGroup, versionedFlowDto.getComments(), snapshotVersion);
         } catch (final NiFiCoreException e) {
             // If the flow has been created, but failed to add a snapshot,
             // then we need to capture the created versioned flow information as a partial successful result.
@@ -4022,9 +4024,9 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
     }
 
     @Override
-    public void verifyCanSaveToFlowRegistry(final String groupId, final String registryId, final String bucketId, final String flowId) {
+    public void verifyCanSaveToFlowRegistry(final String groupId, final String registryId, final String bucketId, final String flowId, final String saveAction) {
         final ProcessGroup group = processGroupDAO.getProcessGroup(groupId);
-        group.verifyCanSaveToFlowRegistry(registryId, bucketId, flowId);
+        group.verifyCanSaveToFlowRegistry(registryId, bucketId, flowId, saveAction);
     }
 
     @Override
@@ -4095,6 +4097,11 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
 
             // Ignore differences for adding remote ports
             if (FlowDifferenceFilters.isAddedOrRemovedRemotePort(difference)) {
+                continue;
+            }
+
+            // Ignore name changes to public ports
+            if (FlowDifferenceFilters.isPublicPortNameChange(difference)) {
                 continue;
             }
 
@@ -4798,6 +4805,15 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
         };
     }
 
+    @Override
+    public void verifyPublicInputPortUniqueness(final String portId, final String portName) {
+        inputPortDAO.verifyPublicPortUniqueness(portId, portName);
+    }
+
+    @Override
+    public void verifyPublicOutputPortUniqueness(final String portId, final String portName) {
+        outputPortDAO.verifyPublicPortUniqueness(portId, portName);
+    }
 
     /* setters */
     public void setProperties(final NiFiProperties properties) {

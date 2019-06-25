@@ -16,31 +16,6 @@
  */
 package org.apache.nifi.groups;
 
-import static java.util.Objects.requireNonNull;
-
-import java.io.IOException;
-import java.net.ConnectException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -133,9 +108,10 @@ import org.apache.nifi.registry.flow.diff.StandardFlowComparator;
 import org.apache.nifi.registry.flow.diff.StaticDifferenceDescriptor;
 import org.apache.nifi.registry.flow.mapping.NiFiRegistryFlowMapper;
 import org.apache.nifi.registry.variable.MutableVariableRegistry;
+import org.apache.nifi.remote.PublicPort;
 import org.apache.nifi.remote.RemoteGroupPort;
-import org.apache.nifi.remote.RootGroupPort;
 import org.apache.nifi.remote.StandardRemoteProcessGroupPortDescriptor;
+import org.apache.nifi.remote.TransferDirection;
 import org.apache.nifi.remote.protocol.SiteToSiteTransportProtocol;
 import org.apache.nifi.scheduling.ExecutionNode;
 import org.apache.nifi.scheduling.SchedulingStrategy;
@@ -145,8 +121,35 @@ import org.apache.nifi.util.ReflectionUtils;
 import org.apache.nifi.util.SnippetUtils;
 import org.apache.nifi.web.Revision;
 import org.apache.nifi.web.api.dto.TemplateDTO;
+import org.apache.nifi.web.api.dto.VersionedFlowDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static java.util.Objects.requireNonNull;
 
 public final class StandardProcessGroup implements ProcessGroup {
 
@@ -280,8 +283,10 @@ public final class StandardProcessGroup implements ProcessGroup {
 
     @Override
     public ProcessGroupCounts getCounts() {
-        int inputPortCount = 0;
-        int outputPortCount = 0;
+        int localInputPortCount = 0;
+        int localOutputPortCount = 0;
+        int publicInputPortCount = 0;
+        int publicOutputPortCount = 0;
 
         int running = 0;
         int stopped = 0;
@@ -310,8 +315,12 @@ public final class StandardProcessGroup implements ProcessGroup {
                 }
             }
 
-            inputPortCount = inputPorts.size();
             for (final Port port : inputPorts.values()) {
+                if (port instanceof PublicPort) {
+                    publicInputPortCount++;
+                } else {
+                    localInputPortCount++;
+                }
                 if (ScheduledState.DISABLED.equals(port.getScheduledState())) {
                     disabled++;
                 } else if (port.isRunning()) {
@@ -323,8 +332,12 @@ public final class StandardProcessGroup implements ProcessGroup {
                 }
             }
 
-            outputPortCount = outputPorts.size();
             for (final Port port : outputPorts.values()) {
+                if (port instanceof PublicPort) {
+                    publicOutputPortCount++;
+                } else {
+                    localOutputPortCount++;
+                }
                 if (ScheduledState.DISABLED.equals(port.getScheduledState())) {
                     disabled++;
                 } else if (port.isRunning()) {
@@ -405,7 +418,8 @@ public final class StandardProcessGroup implements ProcessGroup {
             readLock.unlock();
         }
 
-        return new ProcessGroupCounts(inputPortCount, outputPortCount, running, stopped, invalid, disabled, activeRemotePorts,
+        return new ProcessGroupCounts(localInputPortCount, localOutputPortCount, publicInputPortCount, publicOutputPortCount,
+                running, stopped, invalid, disabled, activeRemotePorts,
                 inactiveRemotePorts, upToDate, locallyModified, stale, locallyModifiedAndStale, syncFailure);
     }
 
@@ -491,22 +505,31 @@ public final class StandardProcessGroup implements ProcessGroup {
         }
     }
 
+    private void verifyPortUniqueness(final Port port,
+                                      final Map<String, Port> portIdMap,
+                                      final Function<String, Port> getPortByName) {
+
+        if (portIdMap.containsKey(requireNonNull(port).getIdentifier())) {
+            throw new IllegalStateException("A port with the same id already exists.");
+        }
+
+        if (getPortByName.apply(port.getName()) != null) {
+            throw new IllegalStateException("A port with the same name already exists.");
+        }
+    }
+
     @Override
     public void addInputPort(final Port port) {
         if (isRootGroup()) {
-            if (!(port instanceof RootGroupPort)) {
+            if (!(port instanceof PublicPort)) {
                 throw new IllegalArgumentException("Cannot add Input Port of type " + port.getClass().getName() + " to the Root Group");
             }
-        } else if (!(port instanceof LocalPort)) {
-            throw new IllegalArgumentException("Cannot add Input Port of type " + port.getClass().getName() + " to a non-root group");
         }
 
         writeLock.lock();
         try {
-            if (inputPorts.containsKey(requireNonNull(port).getIdentifier())
-                    || getInputPortByName(port.getName()) != null) {
-                throw new IllegalStateException("The input port name or identifier is not available to be added.");
-            }
+            // Unique port check within the same group.
+            verifyPortUniqueness(port, inputPorts, name -> getInputPortByName(name));
 
             port.setProcessGroup(this);
             inputPorts.put(requireNonNull(port).getIdentifier(), port);
@@ -579,19 +602,15 @@ public final class StandardProcessGroup implements ProcessGroup {
     @Override
     public void addOutputPort(final Port port) {
         if (isRootGroup()) {
-            if (!(port instanceof RootGroupPort)) {
+            if (!(port instanceof PublicPort)) {
                 throw new IllegalArgumentException("Cannot add Output Port " + port.getClass().getName() + " to the Root Group");
             }
-        } else if (!(port instanceof LocalPort)) {
-            throw new IllegalArgumentException("Cannot add Output Port " + port.getClass().getName() + " to a non-root group");
         }
 
         writeLock.lock();
         try {
-            if (outputPorts.containsKey(requireNonNull(port).getIdentifier())
-                    || getOutputPortByName(port.getName()) != null) {
-                throw new IllegalStateException("Output Port with given identifier or name is not available");
-            }
+            // Unique port check within the same group.
+            verifyPortUniqueness(port, outputPorts, name -> getOutputPortByName(name));
 
             port.setProcessGroup(this);
             outputPorts.put(port.getIdentifier(), port);
@@ -2349,12 +2368,10 @@ public final class StandardProcessGroup implements ProcessGroup {
                 throw new IllegalStateException("One or more components within the snippet is connected to a component outside of the snippet. Only a disconnected snippet may be moved.");
             }
 
-            if (isRootGroup() && (!snippet.getInputPorts().isEmpty() || !snippet.getOutputPorts().isEmpty())) {
-                throw new IllegalStateException("Cannot move Ports out of the root group");
-            }
-
-            if (destination.isRootGroup() && (!snippet.getInputPorts().isEmpty() || !snippet.getOutputPorts().isEmpty())) {
-                throw new IllegalStateException("Cannot move Ports into the root group");
+            if (destination.isRootGroup() && (
+                snippet.getInputPorts().keySet().stream().map(this::getInputPort).anyMatch(port -> port instanceof LocalPort)
+                    || snippet.getOutputPorts().keySet().stream().map(this::getOutputPort).anyMatch(port -> port instanceof LocalPort))) {
+                throw new IllegalStateException("Cannot move local Ports into the root group");
             }
 
             onComponentModified();
@@ -2761,10 +2778,6 @@ public final class StandardProcessGroup implements ProcessGroup {
 
             if (!isDisconnected(snippet)) {
                 throw new IllegalStateException("One or more components within the snippet is connected to a component outside of the snippet. Only a disconnected snippet may be moved.");
-            }
-
-            if (isRootGroup() && (!snippet.getInputPorts().isEmpty() || !snippet.getOutputPorts().isEmpty())) {
-                throw new IllegalStateException("Cannot move Ports from the Root Group to a Non-Root Group");
             }
 
             for (final String id : snippet.getInputPorts().keySet()) {
@@ -3824,7 +3837,16 @@ public final class StandardProcessGroup implements ProcessGroup {
             final Port port = portAndFinalName.getKey();
             final String finalName = portAndFinalName.getValue();
             LOG.info("Updating {} to replace temporary name with final name", port);
-            updatePortToSetFinalName(port, finalName);
+
+            // For public ports we need to consider if another public port exists somewhere else in the flow with the
+            // same name, and if so then rename the incoming port so the flow can still be imported
+            if (port instanceof PublicPort) {
+                final PublicPort publicPort = (PublicPort) port;
+                final String publicPortFinalName = getPublicPortFinalName(publicPort, finalName);
+                updatePortToSetFinalName(publicPort, publicPortFinalName);
+            } else {
+                updatePortToSetFinalName(port, finalName);
+            }
         }
 
         for (final String removedVersionedId : labelsRemoved) {
@@ -3849,6 +3871,21 @@ public final class StandardProcessGroup implements ProcessGroup {
             final ProcessGroup childGroup = childGroupsByVersionedId.get(removedVersionedId);
             LOG.info("Removing {} from {}", childGroup, group);
             group.removeProcessGroup(childGroup);
+        }
+    }
+
+    private String getPublicPortFinalName(final PublicPort publicPort, final String proposedFinalName) {
+        final Optional<Port> existingPublicPort;
+        if (TransferDirection.RECEIVE == publicPort.getDirection()) {
+            existingPublicPort = flowManager.getPublicInputPort(proposedFinalName);
+        } else {
+            existingPublicPort = flowManager.getPublicOutputPort(proposedFinalName);
+        }
+
+        if (existingPublicPort.isPresent() && !existingPublicPort.get().getIdentifier().equals(publicPort.getIdentifier())) {
+            return getPublicPortFinalName(publicPort, "Copy of " + proposedFinalName);
+        } else {
+            return proposedFinalName;
         }
     }
 
@@ -4194,11 +4231,19 @@ public final class StandardProcessGroup implements ProcessGroup {
         port.setComments(proposed.getComments());
         port.setName(name);
         port.setPosition(new Position(proposed.getPosition().getX(), proposed.getPosition().getY()));
+        port.setMaxConcurrentTasks(proposed.getConcurrentlySchedulableTaskCount());
     }
 
     private Port addInputPort(final ProcessGroup destination, final VersionedPort proposed, final String componentIdSeed, final String temporaryName) {
         final String name = temporaryName != null ? temporaryName : proposed.getName();
-        final Port port = flowManager.createLocalInputPort(generateUuid(proposed.getIdentifier(), destination.getIdentifier(), componentIdSeed), name);
+
+        final Port port;
+        if (proposed.isAllowRemoteAccess()) {
+            port = flowManager.createPublicInputPort(generateUuid(proposed.getIdentifier(), destination.getIdentifier(), componentIdSeed), name);
+        } else {
+            port = flowManager.createLocalInputPort(generateUuid(proposed.getIdentifier(), destination.getIdentifier(), componentIdSeed), name);
+        }
+
         port.setVersionedComponentId(proposed.getIdentifier());
         destination.addInputPort(port);
         updatePort(port, proposed, temporaryName);
@@ -4208,7 +4253,14 @@ public final class StandardProcessGroup implements ProcessGroup {
 
     private Port addOutputPort(final ProcessGroup destination, final VersionedPort proposed, final String componentIdSeed, final String temporaryName) {
         final String name = temporaryName != null ? temporaryName : proposed.getName();
-        final Port port = flowManager.createLocalOutputPort(generateUuid(proposed.getIdentifier(), destination.getIdentifier(), componentIdSeed), name);
+
+        final Port port;
+        if (proposed.isAllowRemoteAccess()) {
+            port = flowManager.createPublicOutputPort(generateUuid(proposed.getIdentifier(), destination.getIdentifier(), componentIdSeed), name);
+        } else {
+            port = flowManager.createLocalOutputPort(generateUuid(proposed.getIdentifier(), destination.getIdentifier(), componentIdSeed), name);
+        }
+
         port.setVersionedComponentId(proposed.getIdentifier());
         destination.addOutputPort(port);
         updatePort(port, proposed, temporaryName);
@@ -4421,6 +4473,7 @@ public final class StandardProcessGroup implements ProcessGroup {
         final Set<FlowDifference> differences = comparison.getDifferences().stream()
                 .filter(difference -> difference.getDifferenceType() != DifferenceType.BUNDLE_CHANGED)
                 .filter(FlowDifferenceFilters.FILTER_ADDED_REMOVED_REMOTE_PORTS)
+                .filter(FlowDifferenceFilters.FILTER_PUBLIC_PORT_NAME_CHANGES)
                 .filter(FlowDifferenceFilters.FILTER_IGNORABLE_VERSIONED_FLOW_COORDINATE_CHANGES)
                 .collect(Collectors.toCollection(HashSet::new));
 
@@ -4678,7 +4731,7 @@ public final class StandardProcessGroup implements ProcessGroup {
     }
 
     @Override
-    public void verifyCanSaveToFlowRegistry(final String registryId, final String bucketId, final String flowId) {
+    public void verifyCanSaveToFlowRegistry(final String registryId, final String bucketId, final String flowId, final String saveAction) {
         verifyNoDescendantsWithLocalModifications("be saved to a Flow Registry");
 
         final StandardVersionControlInformation vci = versionControlInfo.get();
@@ -4687,7 +4740,8 @@ public final class StandardProcessGroup implements ProcessGroup {
                 // Flow ID is the same. We want to publish the Process Group as the next version of the Flow.
                 // In order to do this, we have to ensure that the Process Group is 'current'.
                 final VersionedFlowState state = vci.getStatus().getState();
-                if (state == VersionedFlowState.STALE || state == VersionedFlowState.LOCALLY_MODIFIED_AND_STALE) {
+                if (state == VersionedFlowState.STALE
+                        || (state == VersionedFlowState.LOCALLY_MODIFIED_AND_STALE && VersionedFlowDTO.COMMIT_ACTION.equals(saveAction))) {
                     throw new IllegalStateException("Cannot update Version Control Information for Process Group with ID " + getIdentifier()
                             + " because the Process Group in the flow is not synchronized with the most recent version of the Flow in the Flow Registry. "
                             + "In order to publish a new version of the Flow, the Process Group must first be in synch with the latest version in the Flow Registry.");
