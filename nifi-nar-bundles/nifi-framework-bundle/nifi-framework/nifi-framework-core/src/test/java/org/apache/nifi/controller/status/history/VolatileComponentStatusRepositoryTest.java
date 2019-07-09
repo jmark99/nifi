@@ -5,181 +5,129 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
 
 import org.apache.nifi.util.RingBuffer;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.*;
 
+/**
+ * This class verifies the VolatileComponentStatusRepository getConnectionStatusHistory method
+ * honors the start/end/preferredDataPoints variables.
+ */
 public class VolatileComponentStatusRepositoryTest {
 
-  private static final Logger logger =
-      LoggerFactory.getLogger(VolatileComponentStatusRepositoryTest.class);
+  private final VolatileComponentStatusRepository repo = new VolatileComponentStatusRepository();
+  private static RingBuffer<Date> timestamps;
+  private static final int FIVE_MINUTES = 300000;
 
-  private VolatileComponentStatusRepository repo = new VolatileComponentStatusRepository();
-
-  private static RingBuffer<Date> timestamps1;
-  private static RingBuffer<Date> timestamps2;
-
-  // 1_561_680_000 -> 6/28 2019
-  // Integer.MAX_VALUE = 2_147_483_647
-
-
-  @BeforeClass
+  @SuppressWarnings("SpellCheckingInspection") @BeforeClass
   public static void createBuffers() {
-    int bufSize1 = Integer.MAX_VALUE;
-    int bufSize2 = 288;
-
-    timestamps1 = new RingBuffer<>(bufSize1);
-    for (int i = 0; i < bufSize1; i++) {
-      timestamps1.add(new Date(i*1000));
+    int BUFSIZE = 2_500_000;
+    timestamps = new RingBuffer<>(BUFSIZE);
+    // create a buffer containing date objects at five-minute intervals
+    // This provides dates up to around Oct 1993
+    for (long i = 0; i < BUFSIZE; i++) {
+      timestamps.add(new Date(i * FIVE_MINUTES));
     }
-    assertEquals(bufSize1, timestamps1.getSize());
-
-    timestamps2 = new RingBuffer<>(bufSize2);
-    for (int i = 0; i < bufSize2; i++) {
-      timestamps2.add(new Date(i*1000));
-    }
-    assertEquals(bufSize2, timestamps2.getSize());
-
-    logger.info(">>>> First: " + timestamps1.getOldestElement());
-    logger.info(">>>> Last:  " + timestamps1.getNewestElement());
-
-    logger.info(">>>> maxint: " + Integer.MAX_VALUE);
-    logger.info(">>>> Now: " + new Date(Integer.MAX_VALUE));
+    assertEquals(BUFSIZE, timestamps.getSize());
   }
 
-
-  private Date asDate(LocalDateTime localDateTime) {
+  private static Date asDate(LocalDateTime localDateTime) {
     return Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
   }
 
   @Test
   public void testFilterDatesReturnAll() {
-    logger.info("\n>>>> TEST testFilterDatesReturnAll");
-    List<Date> dates = repo.filterDates(timestamps1, null, null, Integer.MAX_VALUE);
-    assertEquals(timestamps1.getSize(), dates.size());
-    assertTrue(dates.equals(timestamps1.asList()));
+    List<Date> dates = repo.filterDates(timestamps, null, null, Integer.MAX_VALUE);
+    assertEquals(timestamps.getSize(), dates.size());
+    assertTrue(dates.equals(timestamps.asList()));
   }
 
   @Test
   public void testFilterDatesUsingPreferredDataPoints() {
-    logger.info("\n>>>> TEST testFilterDatesReturnLastEntry");
-    List<Date> dates = repo.filterDates(timestamps2, null, null, 1);
+    List<Date> dates = repo.filterDates(timestamps, null, null, 1);
     assertEquals(1, dates.size());
-    assertEquals(dates.get(0), timestamps2.getNewestElement());
+    assertEquals(timestamps.getNewestElement(), dates.get(0));
 
-    dates = repo.filterDates(timestamps2, null, null, 15);
-    assertEquals(15, dates.size());
-    assertEquals(dates.get(dates.size()-1), timestamps2.getNewestElement());
+    int numPoints = 14;
+    dates = repo.filterDates(timestamps, null, null, numPoints);
+    assertEquals(numPoints, dates.size());
+    assertEquals(timestamps.getNewestElement(), dates.get(dates.size()-1));
+    assertEquals(timestamps.asList().get(timestamps.getSize() - numPoints), dates.get(0));
   }
 
   @Test
   public void testFilterDatesUsingStartFilter() {
-    logger.info("\n>>>> TEST testFilterDatesUsingStartFilter");
-
-    LocalDateTime localStart = LocalDateTime.of(1970, 1, 1, 0, 0, 0);
-    Date start = asDate(localStart);
-
-    logger.info(">>>> Start: " + start.toString());
-    List<Date> dates = repo.filterDates(timestamps1, start, null, Integer.MAX_VALUE);
+    // Filter with date that exactly matches an entry in timestamps buffer
+    Date start = asDate(LocalDateTime.of(1980, 1, 1, 0, 45, 0));
+    List<Date> dates = repo.filterDates(timestamps, start, null, Integer.MAX_VALUE);
     assertEquals(start, dates.get(0));
-    assertEquals(timestamps1.getNewestElement(), dates.get(dates.size()-1));
+    assertEquals(timestamps.getNewestElement(), dates.get(dates.size()-1));
+
+    // filter using a date that does not exactly match the time, i.e., not on a five-minute mark
+    start = asDate(LocalDateTime.of(1990, 1, 1, 3, 2, 0));
+    dates = repo.filterDates(timestamps, start, null, Integer.MAX_VALUE);
+    assertTrue(start.getTime() < dates.get(0).getTime());
+    assertTrue(dates.get(0).getTime() < (start.getTime() + FIVE_MINUTES));
+    assertEquals(timestamps.getNewestElement(), dates.get(dates.size()-1));
   }
 
-//  @Test
-//  public void testFilterDatesUsingEndFilter() {
-//    logger.info("\n>>>> TEST testFilterDatesUsingEndFilter");
-//    assertTrue(timestamps1.getSize() == bufSize1);
-//
-//    LocalDateTime localStart = LocalDateTime.of(1970, 1, 1, 0, 0, 0);
-//    Date start = asDate(localStart);
-//    LocalDateTime localEnd = LocalDateTime.of(1970, 2, 1,1, 0, 0, 0);
-//    Date end = asDate(localEnd);
-//
-//    logger.info(">>>> Start: " + start.toString());
-//    List<Date> dates = repo.filterDates(timestamps1, start, null, Integer.MAX_VALUE);
-//    assertEquals(start, dates.get(0));
-//    assertEquals(buffer1.get(bufSize1 -1), dates.get(dates.size()-1));
-//
-//
-//    dates = repo.filterDates(timestamps1, null, end, Integer.MAX_VALUE);
-//    assertEquals(buffer1.get(0), dates.get(0));
-//    assertEquals(localEnd, dates.get(dates.size()-1));
-//
-//    dates = repo.filterDates(timestamps1, start, end, Integer.MAX_VALUE);
-//    assertEquals(asDate(LocalDateTime.of(1970, 1, 1, 0, 0, 0)), dates.get(0));
-//    assertEquals(asDate(LocalDateTime.of(1970, 2, 1, 0, 0, 0)), dates.get(dates.size()-1));
-//
-//    dates = repo.filterDates(timestamps1, start, end, 2);
-//    assertEquals(2, dates.size());
-//    assertEquals(asDate(LocalDateTime.of(1970, 1, 31, 59, 59, 59)), dates.get(0));
-//    assertEquals(asDate(LocalDateTime.of(1970, 2, 1, 0, 0, 0)), dates.get(dates.size()-1));
-//  }
-//
-//  @Test
-//  public void testFilterDatesUsingStartAndEndFilter() {
-//    logger.info("\n>>>> TEST testFilterDatesUsingStartAndEndFilter");
-//    assertTrue(timestamps1.getSize() == bufSize1);
-//
-//    LocalDateTime localStart = LocalDateTime.of(1970, 1, 1, 0, 0, 0);
-//    Date start = asDate(localStart);
-//    LocalDateTime localEnd = LocalDateTime.of(1970, 2, 1,1, 0, 0, 0);
-//    Date end = asDate(localEnd);
-//
-//    logger.info(">>>> Start: " + start.toString());
-//    List<Date> dates = repo.filterDates(timestamps1, start, null, Integer.MAX_VALUE);
-//    assertEquals(start, dates.get(0));
-//    assertEquals(buffer1.get(bufSize1 -1), dates.get(dates.size()-1));
-//
-//
-//    dates = repo.filterDates(timestamps1, null, end, Integer.MAX_VALUE);
-//    assertEquals(buffer1.get(0), dates.get(0));
-//    assertEquals(localEnd, dates.get(dates.size()-1));
-//
-//    dates = repo.filterDates(timestamps1, start, end, Integer.MAX_VALUE);
-//    assertEquals(asDate(LocalDateTime.of(1970, 1, 1, 0, 0, 0)), dates.get(0));
-//    assertEquals(asDate(LocalDateTime.of(1970, 2, 1, 0, 0, 0)), dates.get(dates.size()-1));
-//
-//    dates = repo.filterDates(timestamps1, start, end, 2);
-//    assertEquals(2, dates.size());
-//    assertEquals(asDate(LocalDateTime.of(1970, 1, 31, 59, 59, 59)), dates.get(0));
-//    assertEquals(asDate(LocalDateTime.of(1970, 2, 1, 0, 0, 0)), dates.get(dates.size()-1));
-//  }
-//
-//  @Test
-//  public void testFilterDatesUsingStartEndAndPreferredFilter() {
-//    logger.info("\n>>>> TEST testFilterDatesUsingStartEndAndPreferredFilter");
-//    assertTrue(timestamps1.getSize() == bufSize1);
-//
-//    LocalDateTime localStart = LocalDateTime.of(1970, 1, 1, 0, 0, 0);
-//    Date start = asDate(localStart);
-//    LocalDateTime localEnd = LocalDateTime.of(1970, 2, 1,1, 0, 0, 0);
-//    Date end = asDate(localEnd);
-//
-//    logger.info(">>>> Start: " + start.toString());
-//    List<Date> dates = repo.filterDates(timestamps1, start, null, Integer.MAX_VALUE);
-//    assertEquals(start, dates.get(0));
-//    assertEquals(buffer1.get(bufSize1 -1), dates.get(dates.size()-1));
-//
-//
-//    dates = repo.filterDates(timestamps1, null, end, Integer.MAX_VALUE);
-//    assertEquals(buffer1.get(0), dates.get(0));
-//    assertEquals(localEnd, dates.get(dates.size()-1));
-//
-//    dates = repo.filterDates(timestamps1, start, end, Integer.MAX_VALUE);
-//    assertEquals(asDate(LocalDateTime.of(1970, 1, 1, 0, 0, 0)), dates.get(0));
-//    assertEquals(asDate(LocalDateTime.of(1970, 2, 1, 0, 0, 0)), dates.get(dates.size()-1));
-//
-//    dates = repo.filterDates(timestamps1, start, end, 2);
-//    assertEquals(2, dates.size());
-//    assertEquals(asDate(LocalDateTime.of(1970, 1, 31, 59, 59, 59)), dates.get(0));
-//    assertEquals(asDate(LocalDateTime.of(1970, 2, 1, 0, 0, 0)), dates.get(dates.size()-1));
-//  }
+  @Test
+  public void testFilterDatesUsingEndFilter() {
+    // Filter with date that exactly matches an entry in timestamps buffer
+    Date end = asDate(LocalDateTime.of(1970, 2, 1,1, 10, 0));
+    List<Date> dates = repo.filterDates(timestamps, null, end, Integer.MAX_VALUE);
+    assertEquals(end, dates.get(dates.size()-1));
+    assertEquals(timestamps.getOldestElement(), dates.get(0));
 
+    // filter using a date that does not exactly match the times in buffer
+    end = asDate(LocalDateTime.of(1970, 2, 1,1, 7, 0));
+    dates = repo.filterDates(timestamps, null, end, Integer.MAX_VALUE);
+    assertTrue(dates.get(dates.size()-1).getTime() < end.getTime());
+    assertTrue((end.getTime() - FIVE_MINUTES) < dates.get(dates.size()-1).getTime());
+    assertEquals(dates.get(0), timestamps.getOldestElement());
+  }
+
+  @Test
+  public void testFilterDatesUsingStartAndEndFilter() {
+    // Filter with dates that exactly matches entries in timestamps buffer
+    Date start = asDate(LocalDateTime.of(1975, 3, 1, 3, 15, 0));
+    Date end = asDate(LocalDateTime.of(1980, 4, 2,4, 25, 0));
+    List<Date> dates = repo.filterDates(timestamps, start, end, Integer.MAX_VALUE);
+    assertEquals(start, dates.get(0));
+    assertEquals(end, dates.get(dates.size()-1));
+
+    // Filter with dates that do not exactly matches entries in timestamps buffer
+    start = asDate(LocalDateTime.of(1975, 3, 1, 3, 3, 0));
+    end = asDate(LocalDateTime.of(1977, 4, 2,4, 8, 0));
+    dates = repo.filterDates(timestamps, start, end, Integer.MAX_VALUE);
+    assertTrue(start.getTime() < dates.get(0).getTime());
+    assertTrue(dates.get(0).getTime() < (start.getTime() + FIVE_MINUTES));
+    assertTrue(dates.get(dates.size()-1).getTime() < end.getTime());
+    assertTrue((end.getTime() - FIVE_MINUTES) < dates.get(dates.size()-1).getTime());
+  }
+
+  @Test
+  public void testFilterDatesUsingStartEndAndPreferredFilter() {
+    // Filter with dates that exactly matches entries in timestamps buffer
+    int numPoints = 5;
+    Date start = asDate(LocalDateTime.of(1983, 1, 1, 0, 30, 0));
+    Date end = asDate(LocalDateTime.of(1986, 2, 1,1, 0, 0));
+    List<Date> dates = repo.filterDates(timestamps, start, end, numPoints);
+    assertEquals(numPoints, dates.size());
+    assertEquals(dates.get(dates.size()-1), end);
+    assertEquals(dates.get(dates.size()-numPoints), new Date(end.getTime() - (numPoints-1)*FIVE_MINUTES));
+
+    // Filter with dates that do not exactly matches entries in timestamps buffer
+    start = asDate(LocalDateTime.of(1983, 1, 1, 0, 31, 0));
+    end = asDate(LocalDateTime.of(1986, 2, 1,1, 59, 0));
+    dates = repo.filterDates(timestamps, start, end, numPoints);
+    assertTrue(dates.get(0).getTime() < new Date(end.getTime() - (numPoints-1)*FIVE_MINUTES).getTime());
+    assertTrue(new Date(end.getTime() - (numPoints * FIVE_MINUTES)).getTime() < dates.get(0).getTime());
+    assertTrue(dates.get(dates.size()-1).getTime() < end.getTime());
+    assertTrue((end.getTime() - FIVE_MINUTES) < dates.get(dates.size()-1).getTime());
+    assertEquals(numPoints, dates.size());
+  }
 }

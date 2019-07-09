@@ -41,8 +41,7 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
     private static final Set<MetricDescriptor<?>> DEFAULT_PROCESSOR_METRICS = Arrays.stream(ProcessorStatusDescriptor.values())
         .map(ProcessorStatusDescriptor::getDescriptor)
         .collect(Collectors.toSet());
-    protected static final Set<MetricDescriptor<?>> DEFAULT_CONNECTION_METRICS =
-        Arrays.stream(ConnectionStatusDescriptor.values())
+    private static final Set<MetricDescriptor<?>> DEFAULT_CONNECTION_METRICS = Arrays.stream(ConnectionStatusDescriptor.values())
         .map(ConnectionStatusDescriptor::getDescriptor)
         .collect(Collectors.toSet());
     private static final Set<MetricDescriptor<?>> DEFAULT_GROUP_METRICS = Arrays.stream(ProcessGroupStatusDescriptor.values())
@@ -60,7 +59,7 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
 
     private final RingBuffer<Date> timestamps;
     private final RingBuffer<List<GarbageCollectionStatus>> gcStatuses;
-    protected final int numDataPoints;
+    private final int numDataPoints;
     private volatile long lastCaptureTime = 0L;
 
     /**
@@ -146,26 +145,22 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
 
     @Override
     public StatusHistory getProcessorStatusHistory(final String processorId, final Date start, final Date end, final int preferredDataPoints, final boolean includeCounters) {
-        return getStatusHistory(processorId, includeCounters, DEFAULT_PROCESSOR_METRICS, start,
-            end, preferredDataPoints);
+        return getStatusHistory(processorId, includeCounters, DEFAULT_PROCESSOR_METRICS, start, end, preferredDataPoints);
     }
 
     @Override
     public StatusHistory getConnectionStatusHistory(final String connectionId, final Date start, final Date end, final int preferredDataPoints) {
-        return getStatusHistory(connectionId, true, DEFAULT_CONNECTION_METRICS, start,
-            end, preferredDataPoints);
+        return getStatusHistory(connectionId, true, DEFAULT_CONNECTION_METRICS, start, end, preferredDataPoints);
     }
 
     @Override
     public StatusHistory getProcessGroupStatusHistory(final String processGroupId, final Date start, final Date end, final int preferredDataPoints) {
-        return getStatusHistory(processGroupId, true, DEFAULT_GROUP_METRICS, start,
-            end, preferredDataPoints);
+        return getStatusHistory(processGroupId, true, DEFAULT_GROUP_METRICS, start, end, preferredDataPoints);
     }
 
     @Override
     public StatusHistory getRemoteProcessGroupStatusHistory(final String remoteGroupId, final Date start, final Date end, final int preferredDataPoints) {
-        return getStatusHistory(remoteGroupId, true, DEFAULT_RPG_METRICS, start,
-            end, preferredDataPoints);
+        return getStatusHistory(remoteGroupId, true, DEFAULT_RPG_METRICS, start, end, preferredDataPoints);
     }
 
 
@@ -173,7 +168,7 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
     // the calling methods. Although for VolatileComponentStatusRepository the timestamps buffer is
     // rather small it still seemed better that the parameters should be honored rather than
     // silently ignored.
-    protected synchronized StatusHistory getStatusHistory(final String componentId,
+    private synchronized StatusHistory getStatusHistory(final String componentId,
         final boolean includeCounters, final Set<MetricDescriptor<?>> defaultMetricDescriptors,
         final Date start, final Date end, final int preferredDataPoints) {
         final ComponentStatusHistory history = componentStatusHistories.get(componentId);
@@ -182,26 +177,24 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
         }
         // filterDates was pulled into separate method to facilitate unit testing.
         final List<Date> dates = filterDates(timestamps, start, end, preferredDataPoints);
-
         return history.toStatusHistory(dates, includeCounters, defaultMetricDescriptors);
     }
 
-
-    protected List<Date> filterDates(final RingBuffer<Date> timeData, final Date start,
+    // Given a buffer, return a list of Dates based on start/end/preferredDataPoints
+    protected List<Date> filterDates(final RingBuffer<Date> dateBuffer, final Date start,
         final Date end, final int preferredDataPoints) {
         Date startDate = (start == null) ? new Date(0L) : start;
         Date endDate = (end == null) ? new Date() : end;
-//        logger.info(">>>> startDate: " + startDate.toString());
-//        logger.info(">>>> endDate:   " + endDate.toString());
 
         // Limit date information to a subset based upon input parameters
         List<Date> filteredDates =
-            timeData.asList().
+            dateBuffer.asList().
                 stream().
                 filter(p -> (p.after(startDate) || p.equals(startDate))
                     && (p.before(endDate) || p.equals(endDate))).collect(Collectors.toList());
 
-        // if preferredDataPoints != Integer.MAX_VALUE, number of returned Dates will be limited
+        // if preferredDataPoints != Integer.MAX_VALUE, number of returned Dates will be reduced
+        // further
         return filteredDates.subList(Math.max(filteredDates.size() - preferredDataPoints, 0), filteredDates.size());
     }
 
