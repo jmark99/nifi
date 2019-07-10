@@ -7,8 +7,6 @@ import java.util.List;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.nifi.util.NiFiProperties;
 
@@ -31,9 +29,6 @@ public class VolatileComponentStatusRepositoryTest {
   private static int BUFSIZE1 = 1_000_000;
   private static int BUFSIZE2 = 1000;;
   private static int BUFSIZE3 = 10;
-
-  private static final Logger logger =
-      LoggerFactory.getLogger(VolatileComponentStatusRepositoryTest.class);
 
   @BeforeClass
   public static void createBuffers() {
@@ -63,30 +58,25 @@ public class VolatileComponentStatusRepositoryTest {
     repo3 = new VolatileComponentStatusRepository(props3);
   }
 
-  private static void pause(int millis) {
-    try {
-      Thread.sleep(millis);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
-  }
-
   private Date asDate(LocalDateTime localDateTime) {
     return Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
   }
 
   @Test
   public void testFilterDatesReturnAll() {
-    logger.info(">>>> testFilterDatesReturnAll...");
     List<Date> dates = repo1.filterDates(null, null, Integer.MAX_VALUE);
     assertEquals(repo1.timestamps.getSize(), dates.size());
     assertTrue(dates.equals(repo1.timestamps.asList()));
+    repo1.timestamps.add(new Date());
+
+    dates = repo2.filterDates(null, null, Integer.MAX_VALUE);
+    assertEquals(repo2.timestamps.getSize(), dates.size());
+    assertTrue(dates.equals(repo2.timestamps.asList()));
     repo1.timestamps.add(new Date());
   }
 
   @Test
   public void testFilterDatesUsingPreferredDataPoints() {
-    logger.info(">>>> testFilterDatesUsingPreferredDataPoints...");
     List<Date> dates = repo1.filterDates(null, null, 1);
     assertEquals(1, dates.size());
     assertEquals(repo1.timestamps.getNewestElement(), dates.get(0));
@@ -96,11 +86,17 @@ public class VolatileComponentStatusRepositoryTest {
     assertEquals(numPoints, dates.size());
     assertEquals(repo1.timestamps.getNewestElement(), dates.get(dates.size()-1));
     assertEquals(repo1.timestamps.asList().get(repo1.timestamps.getSize() - numPoints), dates.get(0));
+
+    numPoints = 22;
+    dates = repo2.filterDates(null, null, numPoints);
+    assertEquals(numPoints, dates.size());
+    assertEquals(repo2.timestamps.getNewestElement(), dates.get(dates.size()-1));
+    assertEquals(repo2.timestamps.asList().get(repo2.timestamps.getSize() - numPoints),
+        dates.get(0));
   }
 
   @Test
   public void testFilterDatesUsingStartFilter() {
-    logger.info(">>>> testFilterDatesUsingStartFilter...");
     // Filter with date that exactly matches an entry in timestamps buffer
     Date start = asDate(LocalDateTime.of(1978, 1, 1, 0, 45, 0));
     List<Date> dates = repo1.filterDates(start, null, Integer.MAX_VALUE);
@@ -113,11 +109,15 @@ public class VolatileComponentStatusRepositoryTest {
     assertTrue(start.getTime() < dates.get(0).getTime());
     assertTrue(dates.get(0).getTime() < (start.getTime() + FIVE_MINUTES));
     assertEquals(repo1.timestamps.getNewestElement(), dates.get(dates.size()-1));
+
+    start = asDate(LocalDateTime.of(1970, 1, 1, 0, 0, 0));
+    dates = repo2.filterDates(start, null, Integer.MAX_VALUE);
+    assertEquals(start, dates.get(0));
+    assertEquals(repo2.timestamps.getNewestElement(), dates.get(dates.size()-1));
   }
 
   @Test
   public void testFilterDatesUsingEndFilter() {
-    logger.info(">>>> testFilterDatesUsingEndFilter...");
     // Filter with date that exactly matches an entry in timestamps buffer
     Date end = asDate(LocalDateTime.of(1970, 2, 1,1, 10, 0));
     List<Date> dates = repo1.filterDates(null, end, Integer.MAX_VALUE);
@@ -130,11 +130,16 @@ public class VolatileComponentStatusRepositoryTest {
     assertTrue(dates.get(dates.size()-1).getTime() < end.getTime());
     assertTrue((end.getTime() - FIVE_MINUTES) < dates.get(dates.size()-1).getTime());
     assertEquals(dates.get(0), repo1.timestamps.getOldestElement());
+
+    end = asDate(LocalDateTime.of(1970, 1, 2,1, 7, 0));
+    dates = repo2.filterDates(null, end, Integer.MAX_VALUE);
+    assertTrue(dates.get(dates.size()-1).getTime() < end.getTime());
+    assertTrue((end.getTime() - FIVE_MINUTES) < dates.get(dates.size()-1).getTime());
+    assertEquals(repo2.timestamps.asList().get(0), dates.get(0));
   }
 
   @Test
   public void testFilterDatesUsingStartAndEndFilter() {
-    logger.info(">>>> testFilterDatesUsingStartAndEndFilter...");
     // Filter with dates that exactly matches entries in timestamps buffer
     Date start = asDate(LocalDateTime.of(1975, 3, 1, 3, 15, 0));
     Date end = asDate(LocalDateTime.of(1978, 4, 2,4, 25, 0));
@@ -150,11 +155,16 @@ public class VolatileComponentStatusRepositoryTest {
     assertTrue(dates.get(0).getTime() < (start.getTime() + FIVE_MINUTES));
     assertTrue(dates.get(dates.size()-1).getTime() < end.getTime());
     assertTrue((end.getTime() - FIVE_MINUTES) < dates.get(dates.size()-1).getTime());
+
+    start = asDate(LocalDateTime.of(1970, 1, 1, 3, 15, 0));
+    end = asDate(LocalDateTime.of(1970, 1, 2,4, 25, 0));
+    dates = repo1.filterDates(start, end, Integer.MAX_VALUE);
+    assertEquals(start, dates.get(0));
+    assertEquals(end, dates.get(dates.size()-1));
   }
 
   @Test
   public void testFilterDatesUsingStartEndAndPreferredFilter() {
-    logger.info(">>>> testFilterDatesUsingStartEndAndPreferredFilter...");
     // Filter with dates that exactly matches entries in timestamps buffer
     int numPoints = 5;
     Date start = asDate(LocalDateTime.of(1977, 1, 1, 0, 30, 0));
@@ -173,11 +183,19 @@ public class VolatileComponentStatusRepositoryTest {
     assertTrue(dates.get(dates.size()-1).getTime() < end.getTime());
     assertTrue((end.getTime() - FIVE_MINUTES) < dates.get(dates.size() - 1).getTime());
     assertEquals(numPoints, dates.size());
+
+    start = asDate(LocalDateTime.of(1970, 1, 1, 0, 31, 0));
+    end = asDate(LocalDateTime.of(1970, 1, 1,1, 59, 0));
+    dates = repo2.filterDates(start, end, numPoints);
+    assertTrue(dates.get(0).getTime() < new Date(end.getTime() - (numPoints-1)*FIVE_MINUTES).getTime());
+    assertTrue(new Date(end.getTime() - (numPoints * FIVE_MINUTES)).getTime() < dates.get(0).getTime());
+    assertTrue(dates.get(dates.size()-1).getTime() < end.getTime());
+    assertTrue((end.getTime() - FIVE_MINUTES) < dates.get(dates.size() - 1).getTime());
+    assertEquals(numPoints, dates.size());
   }
 
   @Test
   public void testFilterWorksWithCircularBuffer() {
-    logger.info(">>>> testFilterWorksWithCircularBuffer...");
     // Fill repo3 with Date objects at five-minute intervals
     // This repository is used to verify circular actions behave as expected.
     for (int i = 0; i < 25; i++) {
@@ -185,6 +203,7 @@ public class VolatileComponentStatusRepositoryTest {
       List<Date> dates = repo3.filterDates(null, null, Integer.MAX_VALUE);
       if (i < BUFSIZE3 - 1) {
         assertEquals(null, repo3.timestamps.getOldestElement());
+        assertEquals(repo3.timestamps.asList().get(0), dates.get(0));
       } else {
         assertEquals(repo3.timestamps.getOldestElement(), dates.get(0));
       }
