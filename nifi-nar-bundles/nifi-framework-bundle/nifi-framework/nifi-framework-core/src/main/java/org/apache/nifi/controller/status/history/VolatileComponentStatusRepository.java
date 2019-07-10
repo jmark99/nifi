@@ -57,7 +57,8 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
 
     private final Map<String, ComponentStatusHistory> componentStatusHistories = new HashMap<>();
 
-    private final RingBuffer<Date> timestamps;
+    // Changed to protected to allow unit testing
+    protected final RingBuffer<Date> timestamps;
     private final RingBuffer<List<GarbageCollectionStatus>> gcStatuses;
     private final int numDataPoints;
     private volatile long lastCaptureTime = 0L;
@@ -175,26 +176,23 @@ public class VolatileComponentStatusRepository implements ComponentStatusReposit
         if (history == null) {
             return createEmptyStatusHistory();
         }
-        // filterDates was pulled into separate method to facilitate unit testing.
-        final List<Date> dates = filterDates(timestamps, start, end, preferredDataPoints);
+        final List<Date> dates = filterDates(start, end, preferredDataPoints);
         return history.toStatusHistory(dates, includeCounters, defaultMetricDescriptors);
     }
 
     // Given a buffer, return a list of Dates based on start/end/preferredDataPoints
-    protected List<Date> filterDates(final RingBuffer<Date> dateBuffer, final Date start,
-        final Date end, final int preferredDataPoints) {
+    protected List<Date> filterDates(final Date start, final Date end, final int preferredDataPoints) {
         Date startDate = (start == null) ? new Date(0L) : start;
         Date endDate = (end == null) ? new Date() : end;
 
         // Limit date information to a subset based upon input parameters
         List<Date> filteredDates =
-            dateBuffer.asList().
+            timestamps.asList().
                 stream().
                 filter(p -> (p.after(startDate) || p.equals(startDate))
                     && (p.before(endDate) || p.equals(endDate))).collect(Collectors.toList());
 
-        // if preferredDataPoints != Integer.MAX_VALUE, number of returned Dates will be reduced
-        // further
+        // if preferredDataPoints != Integer.MAX_VALUE, Dates returned will be reduced further
         return filteredDates.subList(Math.max(filteredDates.size() - preferredDataPoints, 0), filteredDates.size());
     }
 
