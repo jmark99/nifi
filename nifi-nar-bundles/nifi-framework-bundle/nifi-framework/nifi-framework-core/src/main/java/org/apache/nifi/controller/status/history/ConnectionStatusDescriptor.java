@@ -61,7 +61,23 @@ public enum ConnectionStatusDescriptor {
         "Queued Count",
         "The number of FlowFiles queued in this Connection",
         Formatter.COUNT,
-        s -> Long.valueOf(s.getQueuedCount()));
+        s -> Long.valueOf(s.getQueuedCount())),
+
+    // TODO J
+
+    TIME_TO_FAILURE_BYTES(
+        "ttfBytes",
+        "Time to Failure (bytes)",
+        "The predicted time to queue overload in bytes",
+        Formatter.DURATION,
+        s -> Long.valueOf(s.getTimeToFailureBytes())),
+
+    TIME_TO_FAILURE_COUNT(
+        "ttfCount",
+        "Time to Failure (count)",
+        "The predicted time to queue overload by flowfile count",
+        Formatter.DURATION,
+        s -> Long.valueOf(s.getTimeToFailureCount()));
 
 
     private MetricDescriptor<ConnectionStatus> descriptor;

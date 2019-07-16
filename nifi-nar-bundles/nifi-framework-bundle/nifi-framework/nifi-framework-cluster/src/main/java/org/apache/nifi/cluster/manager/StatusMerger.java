@@ -70,7 +70,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class StatusMerger {
+
+    private static final Logger logger = LoggerFactory.getLogger(StatusMerger.class);
+
     private static final String ZERO_COUNT = "0";
     private static final String ZERO_BYTES = "0 bytes";
     private static final String ZERO_COUNT_AND_BYTES = "0 (0 bytes)";
@@ -484,6 +490,10 @@ public class StatusMerger {
         target.setBytesOut(target.getBytesOut() + toMerge.getBytesOut());
         target.setFlowFilesQueued(target.getFlowFilesQueued() + toMerge.getFlowFilesQueued());
         target.setBytesQueued(target.getBytesQueued() + toMerge.getBytesQueued());
+        logger.info(">>>> setting timeToFailureCount: " + target.getTimeToFailureCount());
+        target.setTimeToFailureCount(target.getTimeToFailureBytes() + toMerge.getTimeToFailureCount());
+        logger.info(">>>> setting timeToFailureBytes: " + target.getTimeToFailureBytes());
+        target.setTimeToFailureBytes(target.getTimeToFailureBytes() + toMerge.getTimeToFailureBytes());
 
         if (target.getPercentUseBytes() == null) {
             target.setPercentUseBytes(toMerge.getPercentUseBytes());
@@ -505,6 +515,8 @@ public class StatusMerger {
         target.setQueuedSize(formatDataSize(target.getBytesQueued()));
         target.setInput(prettyPrint(target.getFlowFilesIn(), target.getBytesIn()));
         target.setOutput(prettyPrint(target.getFlowFilesOut(), target.getBytesOut()));
+        target.setTTFTime(prettyPrint2(target.getTimeToFailureCount(),
+            target.getTimeToFailureBytes()));
     }
 
 
@@ -935,6 +947,17 @@ public class StatusMerger {
         return FormatUtils.formatCount(intStatus);
     }
 
+    public static String formatCount2(final Long longStatus) {
+        if (longStatus == null) {
+            return EMPTY_COUNT;
+        }
+        if (longStatus == 0) {
+            return ZERO_COUNT;
+        }
+
+        return FormatUtils.formatCount(longStatus);
+    }
+
     public static String formatDataSize(final Long longStatus) {
         if (longStatus == null) {
             return EMPTY_BYTES;
@@ -952,6 +975,15 @@ public class StatusMerger {
         }
 
         return formatCount(count) + " (" + formatDataSize(bytes) + ")";
+    }
+
+   public static String prettyPrint2(final Long count, final Long bytes) {
+    logger.info(">>>> prettyPrint2: " + count + " / " + bytes);
+    if (count != null && bytes != null && count == 0 && bytes == 0L) {
+        return ZERO_COUNT_AND_BYTES;
+    }
+
+    return formatCount2(count) + "(" + formatDataSize(bytes) + ")";
     }
 
 }

@@ -46,6 +46,8 @@ public class ProcessGroupStatus implements Cloneable {
     private long bytesSent;
     private int flowFilesTransferred;
     private long bytesTransferred;
+    private long timeToFailureBytes;
+    private long timeToFailureCount;
 
     private Collection<ConnectionStatus> connectionStatus = new ArrayList<>();
     private Collection<ProcessorStatus> processorStatus = new ArrayList<>();
@@ -254,6 +256,22 @@ public class ProcessGroupStatus implements Cloneable {
         this.bytesTransferred = bytesTransferred;
     }
 
+    public long getTimeToFailureBytes() {
+        return timeToFailureBytes;
+    }
+
+    public void setTimeToFailureBytes(long timeToFailureBytes) {
+        this.timeToFailureBytes = timeToFailureBytes;
+    }
+
+    public long getTimeToFailureCount() {
+        return timeToFailureCount;
+    }
+
+    public void setTimeToFailureCount(long timeToFailureCount) {
+        this.timeToFailureCount = timeToFailureCount;
+    }
+
     @Override
     public ProcessGroupStatus clone() {
 
@@ -277,6 +295,8 @@ public class ProcessGroupStatus implements Cloneable {
         clonedObj.bytesSent = bytesSent;
         clonedObj.flowFilesTransferred = flowFilesTransferred;
         clonedObj.bytesTransferred = bytesTransferred;
+        clonedObj.timeToFailureCount = timeToFailureCount;
+        clonedObj.timeToFailureBytes = timeToFailureBytes;
 
         if (connectionStatus != null) {
             final Collection<ConnectionStatus> statusList = new ArrayList<>();
@@ -358,6 +378,11 @@ public class ProcessGroupStatus implements Cloneable {
         builder.append(flowFilesSent);
         builder.append(", bytesSent=");
         builder.append(bytesSent);
+        // TODO J  is this needed
+        builder.append(", ttfBytes=");
+        builder.append(timeToFailureBytes);
+        builder.append(", ttfCount=");
+        builder.append(timeToFailureCount);
         builder.append(",\n\tconnectionStatus=");
 
         for (final ConnectionStatus status : connectionStatus) {
@@ -422,6 +447,8 @@ public class ProcessGroupStatus implements Cloneable {
         target.setBytesReceived(target.getBytesReceived() + toMerge.getBytesReceived());
         target.setFlowFilesSent(target.getFlowFilesSent() + toMerge.getFlowFilesSent());
         target.setBytesSent(target.getBytesSent() + toMerge.getBytesSent());
+        target.setTimeToFailureCount(target.getTimeToFailureCount() + toMerge.getTimeToFailureCount());
+        target.setTimeToFailureBytes(target.getTimeToFailureBytes() + toMerge.getTimeToFailureBytes());
 
         // if the versioned flow state to merge is sync failure allow it to take precedence.
         if (VersionedFlowState.SYNC_FAILURE.equals(toMerge.getVersionedFlowState())) {
@@ -448,6 +475,8 @@ public class ProcessGroupStatus implements Cloneable {
             merged.setInputBytes(merged.getInputBytes() + statusToMerge.getInputBytes());
             merged.setOutputCount(merged.getOutputCount() + statusToMerge.getOutputCount());
             merged.setOutputBytes(merged.getOutputBytes() + statusToMerge.getOutputBytes());
+            merged.setTimeToFailureBytes(merged.getTimeToFailureBytes() + statusToMerge.getTimeToFailureBytes());
+            merged.setTimeToFailureCount(merged.getTimeToFailureCount() + statusToMerge.getTimeToFailureCount());
         }
         target.setConnectionStatus(mergedConnectionMap.values());
 

@@ -288,6 +288,10 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
         this.bytesQueued = bytesQueued;
     }
 
+
+    // TODO J
+    //  Should there be separate percents for timeToOverflow
+
     @ApiModelProperty("Connection percent use regarding queued flow files count and backpressure threshold if configured.")
     public Integer getPercentUseCount() {
         return percentUseCount;

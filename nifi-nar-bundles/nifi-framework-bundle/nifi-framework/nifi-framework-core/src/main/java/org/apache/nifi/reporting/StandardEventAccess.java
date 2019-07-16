@@ -48,11 +48,13 @@ import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.groups.RemoteProcessGroup;
 import org.apache.nifi.history.History;
 import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.properties.StandardNiFiProperties;
 import org.apache.nifi.provenance.ProvenanceEventRecord;
 import org.apache.nifi.provenance.ProvenanceRepository;
 import org.apache.nifi.registry.flow.VersionControlInformation;
 import org.apache.nifi.remote.PublicPort;
 import org.apache.nifi.remote.RemoteGroupPort;
+import org.apache.nifi.util.NiFiProperties;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -61,13 +63,21 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class StandardEventAccess implements UserAwareEventAccess {
     private final FlowFileEventRepository flowFileEventRepository;
     private final FlowController flowController;
 
+    private static final Logger logger = LoggerFactory.getLogger(StandardEventAccess.class);
+
+    private NiFiProperties properties;
+
     public StandardEventAccess(final FlowController flowController, final FlowFileEventRepository flowFileEventRepository) {
         this.flowController = flowController;
         this.flowFileEventRepository = flowFileEventRepository;
+        properties = new StandardNiFiProperties();
     }
 
     /**
@@ -236,6 +246,8 @@ public class StandardEventAccess implements UserAwareEventAccess {
         long bytesSent = 0L;
         int flowFilesTransferred = 0;
         long bytesTransferred = 0;
+        long timeToFailureCount = 0L;
+        long timeToFailureBytes = 0L;
 
         final boolean populateChildStatuses = currentDepth <= recursiveStatusDepth;
 
@@ -280,6 +292,9 @@ public class StandardEventAccess implements UserAwareEventAccess {
             bytesWritten += childGroupStatus.getBytesWritten();
             queuedCount += childGroupStatus.getQueuedCount();
             queuedContentSize += childGroupStatus.getQueuedContentSize();
+
+            timeToFailureCount += childGroupStatus.getTimeToFailureCount();
+            timeToFailureBytes += childGroupStatus.getTimeToFailureBytes();
 
             flowFilesReceived += childGroupStatus.getFlowFilesReceived();
             bytesReceived += childGroupStatus.getBytesReceived();
@@ -355,6 +370,18 @@ public class StandardEventAccess implements UserAwareEventAccess {
             final QueueSize queueSize = conn.getFlowFileQueue().size();
             final int connectionQueuedCount = queueSize.getObjectCount();
             final long connectionQueuedBytes = queueSize.getByteCount();
+
+            // TODO J
+            QueueOverflowMonitor.computeOverflowEstimate(conn,
+                properties.getStatusHistoryThresholdAlert(), 15, flowController);
+            timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
+            timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
+            logger.info(">>>> timeToFailureBytes: " + timeToFailureBytes + " (" + timeToFailureBytes/60000 + ")");
+            logger.info(">>>> timeToFailureCount: " + timeToFailureCount + " (" + timeToFailureCount/60000 + ")");
+
+            connStatus.setTimeToFailureBytes(timeToFailureBytes);
+            connStatus.setTimeToFailureCount(timeToFailureCount);
+
             if (connectionQueuedCount > 0) {
                 connStatus.setQueuedBytes(connectionQueuedBytes);
                 connStatus.setQueuedCount(connectionQueuedCount);
@@ -395,15 +422,7 @@ public class StandardEventAccess implements UserAwareEventAccess {
             portStatus.setActiveThreadCount(processScheduler.getActiveThreadCount(port));
 
             // determine the run status
-            if (ScheduledState.RUNNING.equals(port.getScheduledState())) {
-                portStatus.setRunStatus(RunStatus.Running);
-            } else if (ScheduledState.DISABLED.equals(port.getScheduledState())) {
-                portStatus.setRunStatus(RunStatus.Disabled);
-            } else if (!port.isValid()) {
-                portStatus.setRunStatus(RunStatus.Invalid);
-            } else {
-                portStatus.setRunStatus(RunStatus.Stopped);
-            }
+            setRunStatus(port, portStatus);
 
             // special handling for public ports
             if (port instanceof PublicPort) {
@@ -458,15 +477,7 @@ public class StandardEventAccess implements UserAwareEventAccess {
             portStatus.setActiveThreadCount(processScheduler.getActiveThreadCount(port));
 
             // determine the run status
-            if (ScheduledState.RUNNING.equals(port.getScheduledState())) {
-                portStatus.setRunStatus(RunStatus.Running);
-            } else if (ScheduledState.DISABLED.equals(port.getScheduledState())) {
-                portStatus.setRunStatus(RunStatus.Disabled);
-            } else if (!port.isValid()) {
-                portStatus.setRunStatus(RunStatus.Invalid);
-            } else {
-                portStatus.setRunStatus(RunStatus.Stopped);
-            }
+            setRunStatus(port, portStatus);
 
             // special handling for public ports
             if (port instanceof PublicPort) {
@@ -526,6 +537,8 @@ public class StandardEventAccess implements UserAwareEventAccess {
         status.setBytesSent(bytesSent);
         status.setFlowFilesTransferred(flowFilesTransferred);
         status.setBytesTransferred(bytesTransferred);
+        status.setTimeToFailureBytes(timeToFailureBytes);
+        status.setTimeToFailureCount(timeToFailureCount);
 
         final VersionControlInformation vci = group.getVersionControlInformation();
         if (vci != null && vci.getStatus() != null && vci.getStatus().getState() != null) {
@@ -535,6 +548,18 @@ public class StandardEventAccess implements UserAwareEventAccess {
         return status;
     }
 
+    // pulled out to replace duplicated code
+    private void setRunStatus(Port port, PortStatus portStatus) {
+        if (ScheduledState.RUNNING.equals(port.getScheduledState())) {
+            portStatus.setRunStatus(RunStatus.Running);
+        } else if (ScheduledState.DISABLED.equals(port.getScheduledState())) {
+            portStatus.setRunStatus(RunStatus.Disabled);
+        } else if (!port.isValid()) {
+            portStatus.setRunStatus(RunStatus.Invalid);
+        } else {
+            portStatus.setRunStatus(RunStatus.Stopped);
+        }
+    }
 
     private RemoteProcessGroupStatus createRemoteGroupStatus(final RemoteProcessGroup remoteGroup, final RepositoryStatusReport statusReport, final Predicate<Authorizable> isAuthorized) {
         final boolean isRemoteProcessGroupAuthorized = isAuthorized.evaluate(remoteGroup);

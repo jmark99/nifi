@@ -399,6 +399,18 @@
             resizable: true,
             formatter: nfCommon.genericValueFormatter
         };
+        var ttfColumn = {
+            id: 'timeToFail',
+            field: 'timeToFail',
+            name: '<span class="output-title">ttfCntC</span>&nbsp;/&nbsp;<span' +
+                ' class="output-size-title">ttfBytes</span>&nbsp;<span style="font-weight:' +
+                ' normal;' + ' overflow: hidden;">15 min</span>',
+            toolTip: 'Minutes until overflow failure',
+            sortable: true,
+            defaultSortAsc: false,
+            resizable: true,
+            formatter: nfCommon.genericValueFormatter
+        };
         var tasksTimeColumn = {
             id: 'tasks',
             field: 'tasks',
@@ -756,7 +768,7 @@
             {
                 id: 'sourceName',
                 field: 'sourceName',
-                name: 'Source Name',
+                name: 'Source Name2',
                 sortable: true,
                 resizable: true,
                 formatter: nfCommon.genericValueFormatter
@@ -780,7 +792,8 @@
             inputColumn,
             queueColumn,
             backpressureColumn,
-            outputColumn
+            outputColumn,
+            ttfColumn
         ];
 
         // add an action column if appropriate
@@ -2776,7 +2789,8 @@
                         queuedSize: snapshot.queuedSize,
                         percentUseCount: snapshot.percentUseCount,
                         percentUseBytes: snapshot.percentUseBytes,
-                        output: snapshot.output
+                        output: snapshot.output,
+                        ttftime: snapshot.ttftime
                     });
                 });
 

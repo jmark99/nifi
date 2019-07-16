@@ -279,6 +279,8 @@ public abstract class NiFiProperties {
     public static final String DEFAULT_FLOW_CONFIGURATION_ARCHIVE_MAX_STORAGE = "500 MB";
     public static final String DEFAULT_SECURITY_USER_OIDC_CONNECT_TIMEOUT = "5 secs";
     public static final String DEFAULT_SECURITY_USER_OIDC_READ_TIMEOUT = "5 secs";
+    // TODO J
+    public static final String STATUS_HISTORY_ALERT_THRESHOLD="nifi.history.status.alert.threshold";
 
     // cluster common defaults
     public static final String DEFAULT_CLUSTER_PROTOCOL_HEARTBEAT_INTERVAL = "5 sec";
@@ -1261,6 +1263,13 @@ public abstract class NiFiProperties {
         } else {
             return new Path[]{};
         }
+    }
+
+    // TODO J
+    // Retrieve the threshold time before the status history overflow graph will begin displaying
+    // updates. Defaults to 2 hours (120 minutes).
+    public int getStatusHistoryThresholdAlert() {
+        return getIntegerProperty(STATUS_HISTORY_ALERT_THRESHOLD, 120);
     }
 
     /**

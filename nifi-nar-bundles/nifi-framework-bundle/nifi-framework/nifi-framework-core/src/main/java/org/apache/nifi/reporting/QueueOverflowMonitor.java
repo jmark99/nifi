@@ -2,6 +2,7 @@ package org.apache.nifi.reporting;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -26,22 +27,26 @@ final class QueueOverflowMonitor {
     private static long timeToCountOverflow;
     private static long alertThreshold;
 
-  static void computeOverflowEstimate(final Connection conn, final int threshold, final int window,
+  static void computeOverflowEstimate(final Connection conn, final Integer threshold,
+      final int window,
       final FlowController flowController) {
       logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-      logger.info(">>>> Compute time to fail for Connection: " + conn.getName());
+      logger.info("Compiled at " + new Date().toString());
+      logger.info(">>>> ==== Compute time to fail for Connection: " + conn.getName());
+      if (threshold == null) {
+        logger.info(">>>> **** threshold is NULL");
+      } else {
+        logger.info(">>>> **** threshold is " + threshold);
+      }
 
       alertThreshold = (long) threshold;
-      timeToCountOverflow = alertThreshold;
-      timeToByteOverflow = alertThreshold;
+      timeToCountOverflow = 0; // alertThreshold;
+      timeToByteOverflow = 0;  // alertThreshold;
       int offset = Math.abs(window) + 1;
 
       // - get current time and determine time, 'windowSize' minutes in the past.
       Date endTime = new Date();
       Date startTime = DateUtils.addMinutes(endTime, -offset);
-
-      //String pattern = "yyyy-MM-dd hh:mm:ss";
-      //SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
 
       // Using those times we will get the statusHistory information corresponding to the
       // oldest history up to current-windowSize and the latest history time.
@@ -55,8 +60,8 @@ final class QueueOverflowMonitor {
       if (numberOfSnapshots < 2) {
         timeToCountOverflow = alertThreshold;
         timeToByteOverflow = alertThreshold;
-        //logger.info(">>>> numberOfSnapshots: " + numberOfSnapshots +"; (" + timeToByteOverflow +
-        //    ", " + timeToCountOverflow  + ")");
+        logger.info(">>>> numberOfSnapshots: " + numberOfSnapshots +"; (" + timeToByteOverflow +
+            ", " + timeToCountOverflow  + ")");
         return;
       }
       // get threshold information
@@ -69,17 +74,19 @@ final class QueueOverflowMonitor {
       int current = numberOfSnapshots - 1;
       int oldest = Math.max(0, numberOfSnapshots - offset);
 
-      //logger.info(">>>> snapshot indexes: " + oldest + " to " + current);
+      logger.info(">>>> snapshot indexes: " + oldest + " to " + current);
 
       // Would like snapshots 'window' minutes prior to calculating, so if less than 'window'
       // entries calculate with what we have until then 'window' size reached.
       StatusSnapshotDTO startSnapshot = snapshots.get(oldest);
       StatusSnapshotDTO endSnapshot = snapshots.get(current);
 
-      //String formattedDate = simpleDateFormat.format(startSnapshot.getTimestamp());
-      //logger.info(">>>> oldest snapshot time: " + formattedDate);
-      //formattedDate = simpleDateFormat.format(endSnapshot.getTimestamp());
-      //logger.info(">>>> newest snapshot time: " + formattedDate);
+      String pattern = "yyyy-MM-dd hh:mm:ss";
+      SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+      String formattedDate = simpleDateFormat.format(startSnapshot.getTimestamp());
+      logger.info(">>>> oldest snapshot time: " + formattedDate);
+      formattedDate = simpleDateFormat.format(endSnapshot.getTimestamp());
+      logger.info(">>>> newest snapshot time: " + formattedDate);
 
       long prevBytes = startSnapshot.getStatusMetrics().get("queuedBytes");
       long currentBytes = endSnapshot.getStatusMetrics().get("queuedBytes");
@@ -154,31 +161,30 @@ final class QueueOverflowMonitor {
     // b = current value of bytes/count
     // solve for x
     private static long computeTimeToFailure(Long overflowLimit, long current, long prev, long delta) {
-        //logger.info(">>>> ----> (prev / current) -> (" + prev + " / " + current + "), time delta:"
-        //    + " " + delta);
+        logger.info(">>>> ----> (prev / current) -> (" + prev + " / " + current + "), time delta:"
+            + " " + delta);
 
         // if the threshold has been met or exceeded then set graph to 0.
         if (current >= overflowLimit) {
-          //logger.info(">>>> current == threshold");
+          logger.info(">>>> current == threshold");
           return 0L;
         }
 
         // make sure not dividing by zero
         if (delta <= 0L) {
-          //logger.info(">>>> delta == 0, setting to alertThreshold");
+          logger.info(">>>> delta == 0, setting to alertThreshold");
           return alertThreshold;
         }
 
         double slope = (current - prev) / (double)delta;
-        //logger.info(">>>> slope: " + slope);
+        logger.info(">>>> slope: " + slope);
 
         if (slope <= 0) {
           return alertThreshold;
         }
 
         double ttf = (overflowLimit - current) / slope;
-        //logger.info(">>>> ttf -> " + ttf + " = (" + overflowLimit + " - " + current + ") / " +
-        //  slope);
+        logger.info(">>>> ttf -> " + ttf + " = (" + overflowLimit + " - " + current + ") / " + slope);
 
         BigDecimal bd = new BigDecimal(Double.toString(ttf));
         ttf = bd.setScale(0, RoundingMode.HALF_UP).doubleValue();

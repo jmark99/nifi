@@ -18,6 +18,7 @@ package org.apache.nifi.controller.status;
 
 import org.apache.nifi.processor.DataUnit;
 
+// TODO J
 /**
  */
 public class ConnectionStatus implements Cloneable {
