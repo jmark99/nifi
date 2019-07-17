@@ -89,14 +89,14 @@ class PermissionBasedStatusMergerSpec extends Specification {
                         destinationName: 'hidden')                                                                                                                               | false          ||
                 new ConnectionStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden',
                         destinationName: 'hidden', input: '0 (0 bytes)', output: '0 (0 bytes)',
-                        queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: '0', ttfValue:
+                        queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: '0', timeToOverflow:
                         '0')
         new ConnectionStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden',
                 destinationName: 'hidden')                                                                                                                               | false         |
                 new ConnectionStatusSnapshotDTO(groupId: 'real', id: 'real', name: 'real', sourceId: 'real', sourceName: 'real', destinationId: 'real', destinationName: 'real') | true           ||
                 new ConnectionStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden',
                         destinationName: 'hidden', input: '0 (0 bytes)', output: '0 (0 bytes)',
-                        queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: '0', ttfValue:
+                        queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: '0', timeToOverflow:
                         '0')
     }
 

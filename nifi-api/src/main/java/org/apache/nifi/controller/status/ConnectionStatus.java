@@ -31,7 +31,7 @@ public class ConnectionStatus implements Cloneable {
     private String destinationId;
     private String destinationName;
     private String backPressureDataSizeThreshold;
-    private String ttfTime;
+    private String timeToOverflow;
     private long backPressureBytesThreshold;
     private long backPressureObjectThreshold;
     private int inputCount;
@@ -194,17 +194,25 @@ public class ConnectionStatus implements Cloneable {
         this.timeToFailureCount = timeToFailureCount;
     }
 
-    public long getTimeToFailureCount() { return timeToFailureCount; }
+    public long getTimeToFailureCount() {
+        return timeToFailureCount;
+    }
 
     public void setTimeToFailureBytes(long timeToFailureBytes) {
         this.timeToFailureBytes = timeToFailureBytes;
     }
 
-    public long getTimeToFailureBytes() { return timeToFailureBytes; }
+    public long getTimeToFailureBytes() {
+        return timeToFailureBytes;
+    }
 
-    public void setTTFTime(String ttf) { this.ttfTime = ttfTime; }
+    public void setTimeToOverflow(String timeToOverflow) {
+        this.timeToOverflow = timeToOverflow;
+    }
 
-    public String getTTFTime() { return ttfTime; }
+    public String getTimeToOverflow() {
+        return timeToOverflow;
+    }
 
     @Override
     public ConnectionStatus clone() {
@@ -228,7 +236,7 @@ public class ConnectionStatus implements Cloneable {
         clonedObj.maxQueuedCount = maxQueuedCount;
         clonedObj.timeToFailureBytes = timeToFailureBytes;
         clonedObj.timeToFailureCount = timeToFailureCount;
-        clonedObj.ttfTime = ttfTime;
+        clonedObj.timeToOverflow = timeToOverflow;
         return clonedObj;
     }
 
@@ -269,13 +277,13 @@ public class ConnectionStatus implements Cloneable {
         builder.append(maxQueuedCount);
         builder.append(", maxQueueBytes=");
         builder.append(maxQueuedBytes);
-        builder.append("]");
         builder.append(", timeToFailureCount=");
         builder.append(timeToFailureCount);
         builder.append(", timeToFailureBytes=");
         builder.append(timeToFailureBytes);
-        builder.append(", ttfTime=");
-        builder.append(", ttfTime");
+        builder.append(", timeToOverflow=");
+        builder.append(timeToOverflow);
+        builder.append("]");
         return builder.toString();
     }
 }

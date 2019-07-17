@@ -400,12 +400,13 @@
             formatter: nfCommon.genericValueFormatter
         };
         var ttfColumn = {
-            id: 'timeToFail',
-            field: 'timeToFail',
-            name: '<span class="output-title">ttfCntC</span>&nbsp;/&nbsp;<span' +
+            id: 'timeToOverflow',
+            field: 'timeToOverflow',
+            name: '<span class="output-title">Overflow Est.' +
+                ' (count/bytes)</span>&nbsp;/&nbsp;<span' +
                 ' class="output-size-title">ttfBytes</span>&nbsp;<span style="font-weight:' +
                 ' normal;' + ' overflow: hidden;">15 min</span>',
-            toolTip: 'Minutes until overflow failure',
+            toolTip: 'Estimated time to threshold overflow (queue count / data size)',
             sortable: true,
             defaultSortAsc: false,
             resizable: true,
@@ -795,6 +796,7 @@
             outputColumn,
             ttfColumn
         ];
+        // TODO J ^
 
         // add an action column if appropriate
         if (isClustered || isInShell || nfCommon.SUPPORTS_SVG) {
@@ -2790,7 +2792,7 @@
                         percentUseCount: snapshot.percentUseCount,
                         percentUseBytes: snapshot.percentUseBytes,
                         output: snapshot.output,
-                        ttftime: snapshot.ttftime
+                        timeToOverflow: snapshot.timeToOverflow
                     });
                 });
 
