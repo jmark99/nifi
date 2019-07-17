@@ -975,19 +975,25 @@ public class StatusMerger {
 
     public static String prettyPrint2(final Long msCount, final Long msBytes) {
         logger.info(">>>> prettyPrint2: " + msCount + " / " + msBytes);
-        String inf = "> 02:00:00";
         String thresh = "7200000";
+        String inf = FormatUtils.formatHoursMinutesSeconds2(7200000, TimeUnit.MILLISECONDS);
+
+        //String inf = "> 02:00:00";
+
         long longThresh = Long.parseLong(thresh);
         if ((msBytes >= longThresh) && (msCount >= longThresh)) {
-            return "> 02:00:00 / > 02:00:00";
-            //return NO_OVERFLOW;
+            return "> " + inf + " / > " + inf;
         }
         String cntEstimate = inf;
-        if (msCount < longThresh) {
+        if (msCount == 0) {
+            cntEstimate = "Full";
+        } else if (msCount < longThresh) {
             cntEstimate = FormatUtils.formatHoursMinutesSeconds2(msCount, TimeUnit.MILLISECONDS);
         }
         String byteEstimate = inf;
-        if (msBytes < longThresh) {
+        if (msBytes == 0) {
+            byteEstimate = "Full";
+        } else if (msBytes < longThresh) {
             byteEstimate = FormatUtils.formatHoursMinutesSeconds2(msBytes, TimeUnit.MILLISECONDS);
         }
         logger.info(">>>> prettyPrint2: " + cntEstimate + " / " + byteEstimate);
