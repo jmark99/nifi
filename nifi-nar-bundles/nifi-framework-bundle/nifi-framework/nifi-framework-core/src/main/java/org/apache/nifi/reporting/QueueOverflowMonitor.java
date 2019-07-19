@@ -48,11 +48,7 @@ final class QueueOverflowMonitor {
       final FlowController flowController) {
       logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
       logger.info(">>>> ==== Compute time to fail for Connection: " + conn.getName());
-      if (threshold == null) {
-        logger.info(">>>> **** threshold is NULL");
-      } else {
-        logger.info(">>>> **** threshold is " + threshold);
-      }
+      logger.info(">>>> ==== threshold is " + threshold);
 
       alertThreshold = (long) threshold;
       timeToCountOverflow = 0; // alertThreshold;

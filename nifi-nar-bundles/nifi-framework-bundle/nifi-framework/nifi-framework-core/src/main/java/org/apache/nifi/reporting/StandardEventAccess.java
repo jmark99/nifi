@@ -373,7 +373,7 @@ public class StandardEventAccess implements UserAwareEventAccess {
 
             // TODO J
             QueueOverflowMonitor.computeOverflowEstimate(conn,
-                properties.getStatusHistoryThresholdAlert(), 15, flowController);
+                flowController.getOverflowGraphThreshold(), 15, flowController);
             timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
             timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
             logger.info(">>>> timeToFailureBytes: " + timeToFailureBytes + " (" + timeToFailureBytes/60000 + ")");

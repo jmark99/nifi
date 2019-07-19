@@ -19,6 +19,7 @@ package org.apache.nifi.cluster.manager;
 
 import org.apache.nifi.controller.status.RunStatus;
 import org.apache.nifi.controller.status.TransmissionStatus;
+import org.apache.nifi.properties.StandardNiFiProperties;
 import org.apache.nifi.registry.flow.VersionedFlowState;
 import org.apache.nifi.util.FormatUtils;
 import org.apache.nifi.util.NiFiProperties;
@@ -68,6 +69,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -974,15 +976,27 @@ public class StatusMerger {
     }
 
     public static String prettyPrint2(final Long msCount, final Long msBytes) {
+        int statusHistoryThresholdAlert;
+        NiFiProperties properties = null;
+        try {
+            statusHistoryThresholdAlert = properties.getStatusHistoryThresholdAlert();
+        } catch(Exception ex) {
+            logger.info(">>>> ERROR getStatusHustroyThreaholdAlert is null. set to 239");
+            statusHistoryThresholdAlert = 239;
+        }
+
         logger.info(">>>> prettyPrint2: " + msCount + " / " + msBytes);
-        String thresh = "7200000";
-        String inf = FormatUtils.formatHoursMinutesSeconds2(7200000, TimeUnit.MILLISECONDS);
+        logger.info(">>>> statusHistoryThresholdAlert: " + statusHistoryThresholdAlert);
+        //String thresh = "7200000";
+        long longThresh = (long)statusHistoryThresholdAlert * 60000; // Long.parseLong(thresh);
+        String inf = "> " + FormatUtils.formatHoursMinutesSeconds2(longThresh,
+            TimeUnit.MILLISECONDS);
 
         //String inf = "> 02:00:00";
 
-        long longThresh = Long.parseLong(thresh);
+        //long longThresh = Long.parseLong(thresh);
         if ((msBytes >= longThresh) && (msCount >= longThresh)) {
-            return "> " + inf + " / > " + inf;
+            return inf + " / " + inf;
         }
         String cntEstimate = inf;
         if (msCount == 0) {
