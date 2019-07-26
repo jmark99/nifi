@@ -20,17 +20,11 @@ import io.swagger.annotations.ApiModelProperty;
 
 import javax.xml.bind.annotation.XmlType;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * DTO for serializing the status of a connection.
  */
 @XmlType(name = "connectionStatusSnapshot")
 public class ConnectionStatusSnapshotDTO implements Cloneable {
-
-    private static final Logger logger = LoggerFactory.getLogger(ConnectionStatusSnapshotDTO.class);
-
 
     private String id;
     private String groupId;
@@ -111,10 +105,9 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
     /**
      * @return Time in seconds to count overflow
      */
-    @ApiModelProperty("The time in seconds until the queue count overflows")
+    @ApiModelProperty("The estimated time in seconds until the flowfile count exceeds the "
+        + "connection queue buffer")
     public Long getTimeToFailureCount() {
-        logger.info(">>>> ConnectionStatusSnapshotDTO.getTimeToFailureCount: " +
-         timeToFailureCount);
         return timeToFailureCount;
     }
 
@@ -125,7 +118,8 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
     /**
      * @return Time in seconds to byte overflow
      */
-    @ApiModelProperty("The time in seconds until the byte count overflows")
+    @ApiModelProperty("The estimated time in seconds until the byte size exceeds the connection "
+        + "queue buffer")
     public Long getTimeToFailureBytes() {
         return timeToFailureBytes;
     }
@@ -224,13 +218,7 @@ public class ConnectionStatusSnapshotDTO implements Cloneable {
         return input;
     }
 
-//    @ApiModelProperty("The ttf time in count/bytes for the connection based on last 15 minutes")
-//    public String getTTFTime() {
-//        return timeToOverflow;
-//    }
-
-    @ApiModelProperty("The timeToOverflow time in count/bytes for the connection based on last 15 "
-        + "minutes")
+    @ApiModelProperty("The estimated time before the connection queue fills in hh:mm:ss format")
     public String getTimeToOverflow() {
         return timeToOverflow;
     }
