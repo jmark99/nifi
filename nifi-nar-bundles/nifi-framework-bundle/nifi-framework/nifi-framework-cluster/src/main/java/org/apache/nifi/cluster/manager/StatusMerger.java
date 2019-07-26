@@ -19,10 +19,8 @@ package org.apache.nifi.cluster.manager;
 
 import org.apache.nifi.controller.status.RunStatus;
 import org.apache.nifi.controller.status.TransmissionStatus;
-import org.apache.nifi.properties.StandardNiFiProperties;
 import org.apache.nifi.registry.flow.VersionedFlowState;
 import org.apache.nifi.util.FormatUtils;
-import org.apache.nifi.util.NiFiProperties;
 import org.apache.nifi.web.api.dto.CounterDTO;
 import org.apache.nifi.web.api.dto.CountersDTO;
 import org.apache.nifi.web.api.dto.CountersSnapshotDTO;
@@ -69,24 +67,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class StatusMerger {
-
-    private static final Logger logger = LoggerFactory.getLogger(StatusMerger.class);
 
     private static final String ZERO_COUNT = "0";
     private static final String ZERO_BYTES = "0 bytes";
     private static final String ZERO_COUNT_AND_BYTES = "0 (0 bytes)";
     private static final String EMPTY_COUNT = "-";
     private static final String EMPTY_BYTES = "-";
-    private static final String NO_OVERFLOW = "oo / oo";
-    private static final String OVERFLOWED = " 0 / 0 ";
+    private static final String GREATER_THAN_DAY = "> 24:00:00";
 
     public static void merge(final ControllerStatusDTO target, final ControllerStatusDTO toMerge) {
         if (target == null || toMerge == null) {
@@ -495,9 +486,7 @@ public class StatusMerger {
         target.setBytesOut(target.getBytesOut() + toMerge.getBytesOut());
         target.setFlowFilesQueued(target.getFlowFilesQueued() + toMerge.getFlowFilesQueued());
         target.setBytesQueued(target.getBytesQueued() + toMerge.getBytesQueued());
-        logger.info(">>>> setting timeToFailureCount: " + target.getTimeToFailureCount());
-        target.setTimeToFailureCount(target.getTimeToFailureBytes() + toMerge.getTimeToFailureCount());
-        logger.info(">>>> setting timeToFailureBytes: " + target.getTimeToFailureBytes());
+        target.setTimeToFailureCount(target.getTimeToFailureCount() + toMerge.getTimeToFailureCount());
         target.setTimeToFailureBytes(target.getTimeToFailureBytes() + toMerge.getTimeToFailureBytes());
 
         if (target.getPercentUseBytes() == null) {
@@ -520,11 +509,7 @@ public class StatusMerger {
         target.setQueuedSize(formatDataSize(target.getBytesQueued()));
         target.setInput(prettyPrint(target.getFlowFilesIn(), target.getBytesIn()));
         target.setOutput(prettyPrint(target.getFlowFilesOut(), target.getBytesOut()));
-        logger.info(">>>> >>>> ttfCount: " + target.getTimeToFailureCount());
-        logger.info(">>>> >>>> ttfBytes: " + target.getTimeToFailureBytes());
-//        target.setTimeToOverflow(prettyPrint2(target.getTimeToFailureCount(),
-//            target.getTimeToFailureBytes()));
-        target.setTimeToOverflow(prettyPrint2(target.getTimeToFailureCount(),
+        target.setTimeToOverflow(prettyPrintTTF(target.getTimeToFailureCount(),
             target.getTimeToFailureBytes()));
     }
 
@@ -975,42 +960,24 @@ public class StatusMerger {
         return formatCount(count) + " (" + formatDataSize(bytes) + ")";
     }
 
-    public static String prettyPrint2(final Long msCount, final Long msBytes) {
-        int statusHistoryThresholdAlert;
-        NiFiProperties properties = null;
-        try {
-            statusHistoryThresholdAlert = properties.getStatusHistoryThresholdAlert();
-        } catch(Exception ex) {
-            logger.info(">>>> ERROR getStatusHustroyThreaholdAlert is null. set to 239");
-            statusHistoryThresholdAlert = 239;
-        }
+    // Format the flowfile count and byte size data for the Time to Failure estimation.
+    public static String prettyPrintTTF(final Long msCount, final Long msBytes) {
+        int ONE_DAY = 86400000;
 
-        logger.info(">>>> prettyPrint2: " + msCount + " / " + msBytes);
-        logger.info(">>>> statusHistoryThresholdAlert: " + statusHistoryThresholdAlert);
-        //String thresh = "7200000";
-        long longThresh = (long)statusHistoryThresholdAlert * 60000; // Long.parseLong(thresh);
-        String inf = "> " + FormatUtils.formatHoursMinutesSeconds2(longThresh,
-            TimeUnit.MILLISECONDS);
-
-        //String inf = "> 02:00:00";
-
-        //long longThresh = Long.parseLong(thresh);
-        if ((msBytes >= longThresh) && (msCount >= longThresh)) {
-            return inf + " / " + inf;
+        if ((msBytes >= ONE_DAY) && (msCount >= ONE_DAY)) {
+            return GREATER_THAN_DAY + " / " + GREATER_THAN_DAY;
         }
-        String cntEstimate = inf;
-        if (msCount == 0) {
-            cntEstimate = "Full";
-        } else if (msCount < longThresh) {
-            cntEstimate = FormatUtils.formatHoursMinutesSeconds2(msCount, TimeUnit.MILLISECONDS);
+        // default to inf value
+        String cntEstimate = GREATER_THAN_DAY;
+        String byteEstimate = GREATER_THAN_DAY;
+        if (msCount < ONE_DAY) {
+            cntEstimate = FormatUtils.formatHoursMinutesSeconds(msCount, TimeUnit.MILLISECONDS,
+                false);
         }
-        String byteEstimate = inf;
-        if (msBytes == 0) {
-            byteEstimate = "Full";
-        } else if (msBytes < longThresh) {
-            byteEstimate = FormatUtils.formatHoursMinutesSeconds2(msBytes, TimeUnit.MILLISECONDS);
+        if (msBytes < ONE_DAY) {
+            byteEstimate = FormatUtils.formatHoursMinutesSeconds(msBytes, TimeUnit.MILLISECONDS,
+                false);
         }
-        logger.info(">>>> prettyPrint2: " + cntEstimate + " / " + byteEstimate);
-        return String.format(cntEstimate + " / " + byteEstimate);
+        return cntEstimate + " / " + byteEstimate;
     }
 }

@@ -81,23 +81,69 @@ class PermissionBasedStatusMergerSpec extends Specification {
         returnedJson == expectedJson
 
         where:
-        target                                                                                                                                                           | targetCanRead |
-                toMerge                                                                                                                                                          | toMergeCanRead ||
-                expectedDto
-        new ConnectionStatusSnapshotDTO(groupId: 'real', id: 'real', name: 'real', sourceId: 'real', sourceName: 'real', destinationId: 'real', destinationName: 'real') | true          |
-                new ConnectionStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden',
-                        destinationName: 'hidden')                                                                                                                               | false          ||
-                new ConnectionStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden',
-                        destinationName: 'hidden', input: '0 (0 bytes)', output: '0 (0 bytes)',
-                        queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: '0', timeToOverflow:
-                        '0')
-        new ConnectionStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden',
-                destinationName: 'hidden')                                                                                                                               | false         |
-                new ConnectionStatusSnapshotDTO(groupId: 'real', id: 'real', name: 'real', sourceId: 'real', sourceName: 'real', destinationId: 'real', destinationName: 'real') | true           ||
-                new ConnectionStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden',
-                        destinationName: 'hidden', input: '0 (0 bytes)', output: '0 (0 bytes)',
-                        queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: '0', timeToOverflow:
-                        '0')
+        target | targetCanRead | toMerge | toMergeCanRead || expectedDto
+        // case 1
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'real',
+                id: 'real',
+                name: 'real',
+                sourceId: 'real',
+                sourceName: 'real',
+                destinationId: 'real',
+                destinationName: 'real') | true |
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'hidden',
+                id: 'hidden',
+                name: 'hidden',
+                sourceId: 'hidden',
+                sourceName: 'hidden',
+                destinationId: 'hidden',
+                destinationName: 'hidden') |false ||
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'hidden',
+                id: 'hidden',
+                name: 'hidden',
+                sourceId: 'hidden',
+                sourceName: 'hidden',
+                destinationId: 'hidden',
+                destinationName: 'hidden',
+                timeToOverflow: '00:00:00 / 00:00:00',
+                input: '0 (0 bytes)',
+                output: '0 (0 bytes)',
+                queued: '0 (0 bytes)',
+                queuedSize: '0 bytes',
+                queuedCount: '0')
+        // case 2
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'hidden',
+                id: 'hidden',
+                name: 'hidden',
+                sourceId: 'hidden',
+                sourceName: 'hidden',
+                destinationId: 'hidden',
+                destinationName: 'hidden') | false |
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'real',
+                id: 'real',
+                name: 'real',
+                sourceId: 'real',
+                sourceName: 'real',
+                destinationId: 'real',
+                destinationName: 'real') | true ||
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'hidden',
+                id: 'hidden',
+                name: 'hidden',
+                sourceId: 'hidden',
+                sourceName: 'hidden',
+                destinationId: 'hidden',
+                destinationName: 'hidden',
+                timeToOverflow: '00:00:00 / 00:00:00',
+                input: '0 (0 bytes)',
+                output: '0 (0 bytes)',
+                queued: '0 (0 bytes)',
+                queuedSize: '0 bytes',
+                queuedCount: '0')
     }
 
     def "Merge PortStatusDTO"() {
@@ -325,5 +371,42 @@ class PermissionBasedStatusMergerSpec extends Specification {
         new RemoteProcessGroupStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', targetUri: 'hidden') | false         |
                 new RemoteProcessGroupStatusSnapshotDTO(groupId: 'real', id: 'real', name: 'real', targetUri: 'real')         | true           ||
                 new RemoteProcessGroupStatusSnapshotDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', targetUri: 'hidden', received: '0 (0 bytes)', sent: '0 (0 bytes)')
+    }
+
+
+    def "Verify Summary Page Time-to-Overflow Converts Correctly"() {
+        when:
+        def prettyString = StatusMerger.prettyPrintTTF(msCount, msBytes)
+
+        then:
+        prettyString == ms2time(msCount) + " / " + ms2time(msBytes)
+
+        where:
+        msCount  | msBytes
+        0        | 0
+        12345678 | 78445978
+        94879318 | 524252
+         7493628 | 476342
+        86400000 | 86400000
+        86200000 | 86399999
+       200000000 | 200000000
+    }
+
+    // utility method used in testing Time-to-Overflow values
+    def "ms2time"(long ms) {
+        int ONE_DAY = 86400000
+        String GREATER_THAN_DAY = "> 24:00:00"
+
+        if (ms >= ONE_DAY) {
+            return GREATER_THAN_DAY
+        }
+        int millis = ms
+        int seconds = (millis / 1000).remainder(60)
+        seconds = (int)seconds
+        int minutes = (millis / (1000 * 60)).remainder(60)
+        minutes = (int)minutes
+        int hours = (millis / (1000 * 60 * 60))
+        hours = (int)hours
+        return sprintf("%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
