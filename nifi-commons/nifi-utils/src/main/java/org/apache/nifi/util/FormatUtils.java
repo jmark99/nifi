@@ -64,21 +64,19 @@ public class FormatUtils {
      * @return representation of the given time data in minutes/seconds
      */
     public static String formatMinutesSeconds(final long sourceDuration, final TimeUnit sourceUnit) {
-        final long millis = TimeUnit.MILLISECONDS.convert(sourceDuration, sourceUnit);
-
-        final long millisInMinute = TimeUnit.MILLISECONDS.convert(1, TimeUnit.MINUTES);
-        final int minutes = (int) (millis / millisInMinute);
-        final long secondsMillisLeft = millis - minutes * millisInMinute;
-
-        final long millisInSecond = TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS);
-        final int seconds = (int) (secondsMillisLeft / millisInSecond);
-        final long millisLeft = secondsMillisLeft - seconds * millisInSecond;
-
-        return pad2Places(minutes) + ":" + pad2Places(seconds) + "." + pad3Places(millisLeft);
+        return formatMinutesSeconds(sourceDuration, sourceUnit, true);
     }
 
-    public static String formatMinutesSeconds2(final long sourceDuration,
-        final TimeUnit sourceUnit) {
+    /**
+     * Formats the specified duration in 'mm:ss.SSS' format.
+     *
+     * @param sourceDuration the duration to format
+     * @param sourceUnit     the unit to interpret the duration
+     * @param displayMillis  display the value of milliseconds with time, if true
+     * @return representation of the given time data in minutes/seconds/milliseconds
+     */
+    public static String formatMinutesSeconds(final long sourceDuration,
+        final TimeUnit sourceUnit, final boolean displayMillis) {
         final long millis = TimeUnit.MILLISECONDS.convert(sourceDuration, sourceUnit);
 
         final long millisInMinute = TimeUnit.MILLISECONDS.convert(1, TimeUnit.MINUTES);
@@ -88,7 +86,24 @@ public class FormatUtils {
         final long millisInSecond = TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS);
         final int seconds = (int) (secondsMillisLeft / millisInSecond);
 
-        return pad2Places(minutes) + ":" + pad2Places(seconds);
+        String baseValue = pad2Places(minutes) + ":" + pad2Places(seconds);
+        if (displayMillis) {
+            final long millisLeft = secondsMillisLeft - seconds * millisInSecond;
+            return baseValue + "." + pad3Places(millisLeft);
+        }
+        return baseValue;
+    }
+
+
+    /**
+     * Formats the specified duration in 'HH:mm:ss.SSS' format.
+     *
+     * @param sourceDuration the duration to format
+     * @param sourceUnit     the unit to interpret the duration
+     * @return representation of the given time data in hours/minutes/seconds/milliseconds
+     */
+    public static String formatHoursMinutesSeconds(final long sourceDuration, final TimeUnit sourceUnit) {
+        return formatHoursMinutesSeconds(sourceDuration, sourceUnit, true);
     }
 
     /**
@@ -96,29 +111,21 @@ public class FormatUtils {
      *
      * @param sourceDuration the duration to format
      * @param sourceUnit     the unit to interpret the duration
+     * @param displayMillis  if true, display milliseconds in returned string
      * @return representation of the given time data in hours/minutes/seconds
      */
-    public static String formatHoursMinutesSeconds(final long sourceDuration, final TimeUnit sourceUnit) {
+    public static String formatHoursMinutesSeconds(final long sourceDuration,
+        final TimeUnit sourceUnit, final boolean displayMillis) {
         final long millis = TimeUnit.MILLISECONDS.convert(sourceDuration, sourceUnit);
 
         final long millisInHour = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
         final int hours = (int) (millis / millisInHour);
         final long minutesSecondsMillisLeft = millis - hours * millisInHour;
 
-        return pad2Places(hours) + ":" + formatMinutesSeconds(minutesSecondsMillisLeft, TimeUnit.MILLISECONDS);
+        return pad2Places(hours) + ":" + formatMinutesSeconds(minutesSecondsMillisLeft,
+            TimeUnit.MILLISECONDS, displayMillis);
     }
 
-    public static String formatHoursMinutesSeconds2(final long sourceDuration,
-        final TimeUnit sourceUnit) {
-        final long millis = TimeUnit.MILLISECONDS.convert(sourceDuration, sourceUnit);
-
-        final long millisInHour = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
-        final int hours = (int) (millis / millisInHour);
-        final long minutesSecondsMillisLeft = millis - hours * millisInHour;
-
-        return pad2Places(hours) + ":" + formatMinutesSeconds2(minutesSecondsMillisLeft,
-            TimeUnit.MILLISECONDS);
-    }
 
     private static String pad2Places(final long val) {
         return (val < 10) ? "0" + val : String.valueOf(val);

@@ -48,7 +48,6 @@ import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.groups.RemoteProcessGroup;
 import org.apache.nifi.history.History;
 import org.apache.nifi.processor.Relationship;
-import org.apache.nifi.properties.StandardNiFiProperties;
 import org.apache.nifi.provenance.ProvenanceEventRecord;
 import org.apache.nifi.provenance.ProvenanceRepository;
 import org.apache.nifi.registry.flow.VersionControlInformation;
@@ -72,12 +71,15 @@ public class StandardEventAccess implements UserAwareEventAccess {
 
     private static final Logger logger = LoggerFactory.getLogger(StandardEventAccess.class);
 
-    private NiFiProperties properties;
+    public void setNifiProperties(NiFiProperties nifiProperties) {
+        this.nifiProperties = nifiProperties;
+    }
+
+    private NiFiProperties nifiProperties;
 
     public StandardEventAccess(final FlowController flowController, final FlowFileEventRepository flowFileEventRepository) {
         this.flowController = flowController;
         this.flowFileEventRepository = flowFileEventRepository;
-        properties = new StandardNiFiProperties();
     }
 
     /**
@@ -372,8 +374,12 @@ public class StandardEventAccess implements UserAwareEventAccess {
             final long connectionQueuedBytes = queueSize.getByteCount();
 
             // TODO J
+            logger.info(">>>> TTF alert threshold: " + flowController.getTimeToOverflowGraphThreshold());
+            logger.info(">>>> TTF window size:     " + flowController.getTimeToOverflowWindowSize());
             QueueOverflowMonitor.computeOverflowEstimate(conn,
-                flowController.getOverflowGraphThreshold(), 15, flowController);
+                flowController.getTimeToOverflowGraphThreshold(),
+                flowController.getTimeToOverflowWindowSize(),
+                flowController);
             timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
             timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
             logger.info(">>>> timeToFailureBytes: " + timeToFailureBytes + " (" + timeToFailureBytes/60000 + ")");

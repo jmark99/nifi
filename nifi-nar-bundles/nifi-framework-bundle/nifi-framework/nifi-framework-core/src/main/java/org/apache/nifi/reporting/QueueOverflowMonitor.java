@@ -69,8 +69,8 @@ final class QueueOverflowMonitor {
 
       // If less than 2 snapshots, set ttf to alertThreshold
       if (numberOfSnapshots < 2) {
-        timeToCountOverflow = alertThreshold;
-        timeToByteOverflow = alertThreshold;
+        timeToCountOverflow = 0; // alertThreshold;
+        timeToByteOverflow = 0;  // alertThreshold;
         logger.info(">>>> numberOfSnapshots: " + numberOfSnapshots +"; (" + timeToByteOverflow +
             ", " + timeToCountOverflow  + ")");
         return;
@@ -205,13 +205,18 @@ final class QueueOverflowMonitor {
         return ttfAsLong;
     }
 
+    // FIND A WAY TO LET THE SUMMARY PAGE SHOW ACTUAL TIME UP TO 24 while graph honors
+  // ALERT THRESHOLD
+
     static long getTimeToByteOverflow() {
+      logger.info(">>>> Actual ttf for bytes: " + timeToByteOverflow);
       timeToByteOverflow = Math.min(timeToByteOverflow, alertThreshold);
       // return as milliseconds
       return timeToByteOverflow * 1000 * 60;
     }
 
     static long getTimeToCountOverflow() {
+      logger.info(">>>> Actual ttf for count: " + timeToCountOverflow);
       timeToCountOverflow = Math.min(timeToCountOverflow, alertThreshold);
       // return as milliseconds
       return timeToCountOverflow * 1000 * 60;

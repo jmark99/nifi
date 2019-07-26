@@ -280,7 +280,13 @@ public abstract class NiFiProperties {
     public static final String DEFAULT_SECURITY_USER_OIDC_CONNECT_TIMEOUT = "5 secs";
     public static final String DEFAULT_SECURITY_USER_OIDC_READ_TIMEOUT = "5 secs";
     // TODO J
-    public static final String STATUS_HISTORY_ALERT_THRESHOLD="nifi.history.status.alert.threshold";
+    public static final int DEFAULT_TIME_TO_OVERFLOW_WINDOW_SIZE = 15;
+    public static final int DEFAULT_TIME_TO_OVERFLOW_GRAPH_THRESHOLD = 360;
+
+    public static final String TIME_TO_OVERFLOW_GRAPH_THRESHOLD =
+        "nifi.time.to.overflow.graph.threshold";
+    public static final String TIME_TO_OVERFLOW_WINDOW_SIZE =
+        "nifi.time.to.overflow.window.size";
 
     // cluster common defaults
     public static final String DEFAULT_CLUSTER_PROTOCOL_HEARTBEAT_INTERVAL = "5 sec";
@@ -1266,10 +1272,14 @@ public abstract class NiFiProperties {
     }
 
     // TODO J
-    // Retrieve the threshold time before the status history overflow graph will begin displaying
-    // updates. Defaults to 2 hours (120 minutes).
-    public int getStatusHistoryThresholdAlert() {
-        return getIntegerProperty(STATUS_HISTORY_ALERT_THRESHOLD, 120);
+    // Retrieve the threshold time before which the status history overflow graph will begin
+    // displaying updates.
+    public int getTimeToOverflowGraphThreshold() {
+        return getIntegerProperty(TIME_TO_OVERFLOW_GRAPH_THRESHOLD, DEFAULT_TIME_TO_OVERFLOW_GRAPH_THRESHOLD);
+    }
+
+    public int getTimeToOverflowWindowSize() {
+        return getIntegerProperty(TIME_TO_OVERFLOW_WINDOW_SIZE, DEFAULT_TIME_TO_OVERFLOW_WINDOW_SIZE);
     }
 
     /**

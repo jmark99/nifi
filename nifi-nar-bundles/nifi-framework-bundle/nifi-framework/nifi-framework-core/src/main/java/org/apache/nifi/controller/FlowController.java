@@ -353,8 +353,6 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
     private final TimedLock readLock = new TimedLock(rwLock.readLock(), "FlowControllerReadLock", 1);
     private final TimedLock writeLock = new TimedLock(rwLock.writeLock(), "FlowControllerWriteLock", 1);
 
-    private int overflowGraphThreshold;
-
     private static final Logger LOG = LoggerFactory.getLogger(FlowController.class);
 
     public static FlowController createStandaloneInstance(
@@ -1047,8 +1045,13 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
         return encryptor;
     }
 
-    public int getOverflowGraphThreshold() {
-        return nifiProperties.getStatusHistoryThresholdAlert();
+    // TODO J
+    public int getTimeToOverflowGraphThreshold() {
+        return nifiProperties.getTimeToOverflowGraphThreshold();
+    }
+
+    public int getTimeToOverflowWindowSize() {
+        return nifiProperties.getTimeToOverflowWindowSize();
     }
 
     /**
@@ -1574,6 +1577,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
     public GarbageCollectionHistory getGarbageCollectionHistory() {
         return componentStatusRepository.getGarbageCollectionHistory(new Date(0L), new Date());
     }
+
 
     public ReloadComponent getReloadComponent() {
         return reloadComponent;
