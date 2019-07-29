@@ -281,7 +281,7 @@ public abstract class NiFiProperties {
     public static final String DEFAULT_SECURITY_USER_OIDC_READ_TIMEOUT = "5 secs";
     // TODO J
     public static final int DEFAULT_TIME_TO_OVERFLOW_WINDOW_SIZE = 15;
-    public static final int DEFAULT_TIME_TO_OVERFLOW_GRAPH_THRESHOLD = 360;
+    public static final int DEFAULT_TIME_TO_OVERFLOW_GRAPH_THRESHOLD = 480;
 
     public static final String TIME_TO_OVERFLOW_GRAPH_THRESHOLD =
         "nifi.time.to.overflow.graph.threshold";
