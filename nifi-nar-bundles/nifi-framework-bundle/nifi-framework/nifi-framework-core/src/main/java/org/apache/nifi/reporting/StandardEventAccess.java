@@ -53,7 +53,6 @@ import org.apache.nifi.provenance.ProvenanceRepository;
 import org.apache.nifi.registry.flow.VersionControlInformation;
 import org.apache.nifi.remote.PublicPort;
 import org.apache.nifi.remote.RemoteGroupPort;
-import org.apache.nifi.util.NiFiProperties;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -70,12 +69,6 @@ public class StandardEventAccess implements UserAwareEventAccess {
     private final FlowController flowController;
 
     private static final Logger logger = LoggerFactory.getLogger(StandardEventAccess.class);
-
-    public void setNifiProperties(NiFiProperties nifiProperties) {
-        this.nifiProperties = nifiProperties;
-    }
-
-    private NiFiProperties nifiProperties;
 
     public StandardEventAccess(final FlowController flowController, final FlowFileEventRepository flowFileEventRepository) {
         this.flowController = flowController;
@@ -376,10 +369,7 @@ public class StandardEventAccess implements UserAwareEventAccess {
             // TODO J
             logger.info(">>>> TTF alert threshold: " + flowController.getTimeToOverflowGraphThreshold());
             logger.info(">>>> TTF window size:     " + flowController.getTimeToOverflowWindowSize());
-            QueueOverflowMonitor.computeOverflowEstimate(conn,
-                flowController.getTimeToOverflowGraphThreshold(),
-                flowController.getTimeToOverflowWindowSize(),
-                flowController);
+            QueueOverflowMonitor.computeOverflowEstimate(conn, flowController);
             timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
             timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
             logger.info(">>>> timeToFailureBytes: " + timeToFailureBytes + " (" + timeToFailureBytes/60000 + ")");
@@ -427,7 +417,6 @@ public class StandardEventAccess implements UserAwareEventAccess {
             portStatus.setName(isInputPortAuthorized ? port.getName() : port.getIdentifier());
             portStatus.setActiveThreadCount(processScheduler.getActiveThreadCount(port));
 
-            // determine the run status
             setRunStatus(port, portStatus);
 
             // special handling for public ports
@@ -482,7 +471,6 @@ public class StandardEventAccess implements UserAwareEventAccess {
             portStatus.setName(isOutputPortAuthorized ? port.getName() : port.getIdentifier());
             portStatus.setActiveThreadCount(processScheduler.getActiveThreadCount(port));
 
-            // determine the run status
             setRunStatus(port, portStatus);
 
             // special handling for public ports

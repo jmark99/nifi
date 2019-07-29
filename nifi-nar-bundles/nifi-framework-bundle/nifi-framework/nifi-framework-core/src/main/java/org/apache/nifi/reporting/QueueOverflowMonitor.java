@@ -43,17 +43,15 @@ final class QueueOverflowMonitor {
     private static long timeToCountOverflow;
     private static long alertThreshold;
 
-  static void computeOverflowEstimate(final Connection conn, final Integer threshold,
-      final int window,
-      final FlowController flowController) {
+  static void computeOverflowEstimate(final Connection conn, final FlowController flowController) {
       logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
       logger.info(">>>> ==== Compute time to fail for Connection: " + conn.getName());
-      logger.info(">>>> ==== threshold is " + threshold);
+      logger.info(">>>> ==== threshold is " + flowController.getTimeToOverflowGraphThreshold());
 
-      alertThreshold = (long) threshold;
+      alertThreshold = (long) flowController.getTimeToOverflowGraphThreshold();
       timeToCountOverflow = 0; // alertThreshold;
       timeToByteOverflow = 0;  // alertThreshold;
-      int offset = Math.abs(window) + 1;
+      int offset = Math.abs(flowController.getTimeToOverflowWindowSize()) + 1;
 
       // - get current time and determine time, 'windowSize' minutes in the past.
       Date endTime = new Date();
