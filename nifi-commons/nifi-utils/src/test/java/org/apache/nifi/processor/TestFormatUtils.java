@@ -46,15 +46,42 @@ public class TestFormatUtils {
         assertEquals("00:00:00.777", FormatUtils.formatHoursMinutesSeconds(777, TimeUnit.MILLISECONDS));
         assertEquals("00:00:07.777", FormatUtils.formatHoursMinutesSeconds(7777, TimeUnit.MILLISECONDS));
 
+        assertEquals("00:00:00", FormatUtils.formatHoursMinutesSeconds(0,
+            TimeUnit.DAYS, false));
+        assertEquals("01:00:00", FormatUtils.formatHoursMinutesSeconds(1,
+            TimeUnit.HOURS, false));
+        assertEquals("02:00:00", FormatUtils.formatHoursMinutesSeconds(2,
+            TimeUnit.HOURS, false));
+        assertEquals("00:01:00", FormatUtils.formatHoursMinutesSeconds(1,
+            TimeUnit.MINUTES, false));
+        assertEquals("00:00:10", FormatUtils.formatHoursMinutesSeconds(10,
+            TimeUnit.SECONDS,false));
+        assertEquals("00:00:00", FormatUtils.formatHoursMinutesSeconds(777,
+            TimeUnit.MILLISECONDS, false));
+        assertEquals("00:00:07", FormatUtils.formatHoursMinutesSeconds(7777,
+            TimeUnit.MILLISECONDS, false));
+
         assertEquals("20:11:36.897", FormatUtils.formatHoursMinutesSeconds(TimeUnit.MILLISECONDS.convert(20, TimeUnit.HOURS)
                 + TimeUnit.MILLISECONDS.convert(11, TimeUnit.MINUTES)
                 + TimeUnit.MILLISECONDS.convert(36, TimeUnit.SECONDS)
                 + TimeUnit.MILLISECONDS.convert(897, TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS));
 
+        assertEquals("20:11:36", FormatUtils.formatHoursMinutesSeconds(TimeUnit.MILLISECONDS.convert(20, TimeUnit.HOURS)
+            + TimeUnit.MILLISECONDS.convert(11, TimeUnit.MINUTES)
+            + TimeUnit.MILLISECONDS.convert(36, TimeUnit.SECONDS)
+            + TimeUnit.MILLISECONDS.convert(897, TimeUnit.MILLISECONDS),
+            TimeUnit.MILLISECONDS, false));
+
         assertEquals("1000:01:01.001", FormatUtils.formatHoursMinutesSeconds(TimeUnit.MILLISECONDS.convert(999, TimeUnit.HOURS)
                 + TimeUnit.MILLISECONDS.convert(60, TimeUnit.MINUTES)
                 + TimeUnit.MILLISECONDS.convert(60, TimeUnit.SECONDS)
                 + TimeUnit.MILLISECONDS.convert(1001, TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS));
+
+        assertEquals("1000:01:01", FormatUtils.formatHoursMinutesSeconds(TimeUnit.MILLISECONDS.convert(999, TimeUnit.HOURS)
+            + TimeUnit.MILLISECONDS.convert(60, TimeUnit.MINUTES)
+            + TimeUnit.MILLISECONDS.convert(60, TimeUnit.SECONDS)
+            + TimeUnit.MILLISECONDS.convert(1001, TimeUnit.MILLISECONDS),
+            TimeUnit.MILLISECONDS,false));
     }
 
 
