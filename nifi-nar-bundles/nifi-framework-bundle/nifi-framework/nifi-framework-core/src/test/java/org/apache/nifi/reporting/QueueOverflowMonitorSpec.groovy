@@ -56,5 +56,22 @@ class QueueOverflowMonitorSpec extends Specification {
         DateUtils.parseDate("2019/08/12 00:00:00", "yyyy/MM/dd HH:mm:ss") |
                 DateUtils.parseDate("2019/08/22 13:15:34", "yyyy/MM/dd HH:mm:ss")
     }
+
+    // y = mx + b
+    // m = slope --> rise/run --> (current_val - prev_val) / time_delta (in minutes)
+    // y = overflow limit
+    // b = current value of bytes/count
+    // solve for x
+//    def "Compute overflow estimate"() {
+//        when:
+//        def estimate = QueueOverflowMonitor.computeTimeToFailure(limit, current, prev, delta)
+//
+//        then:
+//        expectedTimeToOverflow == m*x + boolean
+//
+//        where:
+//        limit | current | prev | delta
+//
+//    }
 }
 

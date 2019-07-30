@@ -175,6 +175,36 @@ public class FormatUtils {
     }
 
     /**
+     * Retrieve a data size as double from a formatted size string.
+     *
+     * The input string are expected to be of forms such as:
+     *      4 bytes
+     *      32 KB
+     *      6433 MB
+     *      235 GB
+     *      12 TB
+     *
+     * @param dataSize as a String
+     * @return the data size as a double
+     */
+    public static double getValueFromFormattedDataSize(String dataSize) {
+        double bytes;
+        String[] threshold = dataSize.split("\\s+");
+        if (threshold[1].toLowerCase().contains("tb")) {
+            bytes = Long.valueOf(threshold[0]) * BYTES_IN_TERABYTE;
+        } else if (threshold[1].toLowerCase().contains("gb")) {
+            bytes = Long.valueOf(threshold[0]) * BYTES_IN_GIGABYTE;
+        } else if (threshold[1].toLowerCase().contains("mb")) {
+            bytes = Long.valueOf(threshold[0]) * BYTES_IN_MEGABYTE;
+        } else if (threshold[1].toLowerCase().contains("kb")) {
+            bytes = Long.valueOf(threshold[0]) * BYTES_IN_KILOBYTE;
+        } else {
+            bytes = Long.valueOf(threshold[0]);
+        }
+        return bytes;
+    }
+
+    /**
      * Returns a time duration in the requested {@link TimeUnit} after parsing the {@code String}
      * input. If the resulting value is a decimal (i.e.
      * {@code 25 hours -> TimeUnit.DAYS = 1.04}), the value is rounded.

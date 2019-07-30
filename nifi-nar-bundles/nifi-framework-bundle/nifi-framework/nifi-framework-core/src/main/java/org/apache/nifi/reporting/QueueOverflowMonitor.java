@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.nifi.connectable.Connection;
 import org.apache.nifi.controller.FlowController;
+import org.apache.nifi.util.FormatUtils;
 import org.apache.nifi.web.api.dto.status.StatusSnapshotDTO;
 
 // We will go back 'windowSize' minutes and obtain the information for the connection at that
@@ -39,9 +40,9 @@ import org.apache.nifi.web.api.dto.status.StatusSnapshotDTO;
 final class QueueOverflowMonitor {
 
     private static final Logger logger = LoggerFactory.getLogger(QueueOverflowMonitor.class);
-    private static long timeToByteOverflow;
-    private static long timeToCountOverflow;
-    private static long alertThreshold;
+    static long timeToByteOverflow;
+    static long timeToCountOverflow;
+    static long alertThreshold;
 
   static void computeOverflowEstimate(final Connection conn, final FlowController flowController) {
       logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -76,7 +77,7 @@ final class QueueOverflowMonitor {
       // get threshold information
       long maxFiles = conn.getFlowFileQueue().getBackPressureObjectThreshold();
       String maxBytesAsString = conn.getFlowFileQueue().getBackPressureDataSizeThreshold();
-      long maxBytes = convertThresholdToBytes(maxBytesAsString);
+      long maxBytes = (long)FormatUtils.getValueFromFormattedDataSize(maxBytesAsString);
 
       logger.info(">>>> Threshold Values: (" + maxBytesAsString + " - " + maxBytes + ") / " + maxFiles);
 
@@ -127,28 +128,6 @@ final class QueueOverflowMonitor {
     }
   }
 
-  private static long convertThresholdToBytes(String backPressureDataSizeThreshold) {
-      final long BYTES_IN_KILOBYTE = 1024L;
-      final long BYTES_IN_MEGABYTE = 1048576L;
-      final long BYTES_IN_GIGABYTE = 1073741824L;
-      final long BYTES_IN_TERABYTE = 1099511627776L;
-      long bytes;
-
-      String[] threshold = backPressureDataSizeThreshold.split("\\s+");
-      if (threshold[1].toLowerCase().contains("tb")) {
-        bytes = Long.valueOf(threshold[0]) * BYTES_IN_TERABYTE;
-      } else if (threshold[1].toLowerCase().contains("gb")) {
-        bytes = Long.valueOf(threshold[0]) * BYTES_IN_GIGABYTE;
-      } else if (threshold[1].toLowerCase().contains("mb")) {
-        bytes = Long.valueOf(threshold[0]) * BYTES_IN_MEGABYTE;
-      } else if (threshold[1].toLowerCase().contains("kb")) {
-        bytes = Long.valueOf(threshold[0]) * BYTES_IN_KILOBYTE;
-      } else {
-        bytes = Long.valueOf(threshold[0]);
-      }
-      return bytes;
-    }
-
     public static long diffInMinutes(Date date1, Date date2) {
       long diffInMillis = Math.abs(date2.getTime() - date1.getTime());
       return TimeUnit.MINUTES.convert(diffInMillis, TimeUnit.MILLISECONDS);
@@ -162,14 +141,15 @@ final class QueueOverflowMonitor {
     private static void computeTimeToFailureFiles(long threshold, long current, long prev,
       long delta) {
       timeToCountOverflow = computeTimeToFailure(threshold, current, prev, delta);
-  }
+    }
 
     // y = mx + b
     // m = slope --> rise/run --> (current_val - prev_val) / time_delta (in minutes)
     // y = overflow limit
     // b = current value of bytes/count
     // solve for x
-    private static long computeTimeToFailure(Long overflowLimit, long current, long prev, long delta) {
+    static long computeTimeToFailure(Long overflowLimit, long current, long prev,
+      long delta) {
         logger.info(">>>> ----> (prev / current) -> (" + prev + " / " + current + "), time delta:"
             + " " + delta);
 
