@@ -149,8 +149,8 @@ final class QueueOverflowMonitor {
       return bytes;
     }
 
-    private static long diffInMinutes(Date date1, Date date2) {
-      long diffInMillis = date2.getTime() - date1.getTime();
+    public static long diffInMinutes(Date date1, Date date2) {
+      long diffInMillis = Math.abs(date2.getTime() - date1.getTime());
       return TimeUnit.MINUTES.convert(diffInMillis, TimeUnit.MILLISECONDS);
     }
 
