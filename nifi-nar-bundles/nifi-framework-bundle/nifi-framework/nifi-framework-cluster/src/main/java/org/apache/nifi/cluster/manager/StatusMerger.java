@@ -962,22 +962,22 @@ public class StatusMerger {
 
     // Format the flowfile count and byte size data for the Time to Failure estimation.
     public static String prettyPrintTTF(final Long msCount, final Long msBytes) {
-        int ONE_DAY = 86400000;
-
-        if ((msBytes >= ONE_DAY) && (msCount >= ONE_DAY)) {
-            return GREATER_THAN_DAY + " / " + GREATER_THAN_DAY;
-        }
-        // default to inf value
-        String cntEstimate = GREATER_THAN_DAY;
-        String byteEstimate = GREATER_THAN_DAY;
-        if (msCount < ONE_DAY) {
-            cntEstimate = FormatUtils.formatHoursMinutesSeconds(msCount, TimeUnit.MILLISECONDS,
+//        int ONE_DAY = 86400000;
+//
+//        if ((msBytes >= ONE_DAY) && (msCount >= ONE_DAY)) {
+//            return GREATER_THAN_DAY + " / " + GREATER_THAN_DAY;
+//        }
+//        // default to inf value
+//        String cntEstimate = GREATER_THAN_DAY;
+//        String byteEstimate = GREATER_THAN_DAY;
+//        if (msCount < ONE_DAY) {
+        String cntEstimate = FormatUtils.formatHoursMinutesSeconds(msCount, TimeUnit.MILLISECONDS,
                 false);
-        }
-        if (msBytes < ONE_DAY) {
-            byteEstimate = FormatUtils.formatHoursMinutesSeconds(msBytes, TimeUnit.MILLISECONDS,
+//        }
+//        if (msBytes < ONE_DAY) {
+        String byteEstimate = FormatUtils.formatHoursMinutesSeconds(msBytes, TimeUnit.MILLISECONDS,
                 false);
-        }
+//        }
         return cntEstimate + " / " + byteEstimate;
     }
 }

@@ -31,7 +31,6 @@ public class ConnectionStatus implements Cloneable {
     private String destinationId;
     private String destinationName;
     private String backPressureDataSizeThreshold;
-    private String timeToOverflow;
     private long backPressureBytesThreshold;
     private long backPressureObjectThreshold;
     private int inputCount;
@@ -206,14 +205,6 @@ public class ConnectionStatus implements Cloneable {
         return timeToFailureBytes;
     }
 
-    public void setTimeToOverflow(String timeToOverflow) {
-        this.timeToOverflow = timeToOverflow;
-    }
-
-    public String getTimeToOverflow() {
-        return timeToOverflow;
-    }
-
     @Override
     public ConnectionStatus clone() {
         final ConnectionStatus clonedObj = new ConnectionStatus();
@@ -236,7 +227,7 @@ public class ConnectionStatus implements Cloneable {
         clonedObj.maxQueuedCount = maxQueuedCount;
         clonedObj.timeToFailureBytes = timeToFailureBytes;
         clonedObj.timeToFailureCount = timeToFailureCount;
-        clonedObj.timeToOverflow = timeToOverflow;
+//        clonedObj.timeToOverflow = timeToOverflow;
         return clonedObj;
     }
 
@@ -281,8 +272,8 @@ public class ConnectionStatus implements Cloneable {
         builder.append(timeToFailureCount);
         builder.append(", timeToFailureBytes=");
         builder.append(timeToFailureBytes);
-        builder.append(", timeToOverflow=");
-        builder.append(timeToOverflow);
+//        builder.append(", timeToOverflow=");
+//        builder.append(timeToOverflow);
         builder.append("]");
         return builder.toString();
     }

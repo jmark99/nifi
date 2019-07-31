@@ -53,10 +53,13 @@ final class QueueOverflowMonitor {
       timeToCountOverflow = 0; // alertThreshold;
       timeToByteOverflow = 0;  // alertThreshold;
       int offset = Math.abs(flowController.getTimeToOverflowWindowSize()) + 1;
+      logger.info(">>>> offset: " + offset);
 
       // - get current time and determine time, 'windowSize' minutes in the past.
       Date endTime = new Date();
-      Date startTime = DateUtils.addMinutes(endTime, -offset);
+      Date startTime = DateUtils.addMinutes(endTime, -(offset+1));
+      logger.info(">>>> startTime: " + startTime);
+      logger.info(">>>> endTime:   " + endTime);
 
       // Using those times we will get the statusHistory information corresponding to the
       // oldest history up to current-windowSize and the latest history time.
@@ -66,10 +69,12 @@ final class QueueOverflowMonitor {
 
       int numberOfSnapshots = snapshots.size();
 
-      // If less than 2 snapshots, set ttf to alertThreshold
+      logSnapshots(snapshots);
+
+      // If less than 2 snapshots, set ttf to 0
       if (numberOfSnapshots < 2) {
-        timeToCountOverflow = 0; // alertThreshold;
-        timeToByteOverflow = 0;  // alertThreshold;
+        timeToCountOverflow = 0; //alertThreshold;
+        timeToByteOverflow = 0; //alertThreshold;
         logger.info(">>>> numberOfSnapshots: " + numberOfSnapshots +"; (" + timeToByteOverflow +
             ", " + timeToCountOverflow  + ")");
         return;
@@ -115,15 +120,15 @@ final class QueueOverflowMonitor {
     }
 
   private static void logSnapshots(List<StatusSnapshotDTO> snapshots) {
-    logger.info(">>>> Retrieved Snapshots:");
+    logger.info(">>>> * Retrieved Snapshots:");
     int filter = 0;
     for (StatusSnapshotDTO dto : snapshots) {
-      if (filter == 0 || filter == snapshots.size()-1) {
-        logger.info(">>>> date: " + dto.getTimestamp().toString());
+      //if (filter == 0 || filter == snapshots.size()-1) {
+        logger.info(">>>> * date: " + dto.getTimestamp().toString());
         Map<String,Long> statusMetrics = dto.getStatusMetrics();
         logger.info(
-            ">>>>\tqueuedCount / queuedBytes ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
-      }
+            ">>>>\t* queuedCount / queuedBytes ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
+      //}
       filter++;
     }
   }
@@ -135,69 +140,70 @@ final class QueueOverflowMonitor {
 
     private static void computeTimeToFailureBytes(long limit, long current, long prev,
         long delta) {
-        timeToByteOverflow = computeTimeToFailure(limit, current, prev, delta);
+        timeToByteOverflow = getTimeToOverflow(limit, current, prev, delta);
     }
 
-    private static void computeTimeToFailureFiles(long threshold, long current, long prev,
+    static void computeTimeToFailureFiles(long threshold, long current, long prev,
       long delta) {
-      timeToCountOverflow = computeTimeToFailure(threshold, current, prev, delta);
+      timeToCountOverflow = getTimeToOverflow(threshold, current, prev, delta);
     }
 
     // y = mx + b
-    // m = slope --> rise/run --> (current_val - prev_val) / time_delta (in minutes)
-    // y = overflow limit
-    // b = current value of bytes/count
-    // solve for x
-    static long computeTimeToFailure(Long overflowLimit, long current, long prev,
-      long delta) {
-        logger.info(">>>> ----> (prev / current) -> (" + prev + " / " + current + "), time delta:"
-            + " " + delta);
+    // max = slope * x + current_val_of_bytes_or_count
+    // x represents time that current_val will reach overflow. Solve for x.
+    // Slope = rise/run -> (current_val - prev_val) / time_delta (in minutes)
+    static long getTimeToOverflow(Long max, long current, long prev, long delta) {
+        logger.info(">>>> current / prev / delta / max");
+        logger.info(">>>> " + current + " / " + prev + " / " + delta + " / " + max);
 
-        // if the threshold has been met or exceeded then set graph to 0.
-        if (current >= overflowLimit) {
+        // if MAX has been met or exceeded then set graph to 0.
+        // No need for further calculation
+        if (current >= max) {
           logger.info(">>>> current == threshold");
           return 0L;
         }
 
-        // make sure not dividing by zero
+        // if not enough time has passed to have a delta value then set graph to 0
         if (delta <= 0L) {
-          logger.info(">>>> delta == 0, setting to alertThreshold");
-          return alertThreshold;
+          logger.info(">>>> delta == 0");
+          return 0L;
         }
 
-        double slope = (current - prev) / (double)delta;
-        logger.info(">>>> slope: " + slope);
+        // Determine slope, making sure not to divide by 0
+        double slope = (current - prev) / (double) delta;
+        String msg = String.format(">>>> slope: {%5.2f}", slope);
+        logger.info(msg);
 
+        // if slope is 0 or less then there is no worry of overflow happening. Decided to allow
+        // user to select a threshold value at which time they would like to see graph values
+        // begin tracking. Set to this value.
         if (slope <= 0) {
           return alertThreshold;
         }
 
-        double ttf = (overflowLimit - current) / slope;
-        logger.info(">>>> ttf -> " + ttf + " = (" + overflowLimit + " - " + current + ") / " + slope);
+        // Compute the estimated time to overflow
+        double estimatedOverflow = (max - current) / slope;
+        logger.info(">>>> estimatedOverflow -> {} : ({} - {}) / {}", estimatedOverflow,
+            max, current, slope);
 
-        BigDecimal bd = new BigDecimal(Double.toString(ttf));
-        ttf = bd.setScale(0, RoundingMode.HALF_UP).doubleValue();
+        BigDecimal bd = new BigDecimal(Double.toString(estimatedOverflow));
+        estimatedOverflow = bd.setScale(0, RoundingMode.HALF_UP).doubleValue();
 
-        long ttfAsLong = (long) (ttf);
-        logger.info(">>>> computed ttf " + ttfAsLong);
-        return ttfAsLong;
+        long estimateAsLong = (long) (estimatedOverflow);
+        logger.info(">>>> Overflow Estimate: " + estimateAsLong);
+        return estimateAsLong;
     }
 
-    // FIND A WAY TO LET THE SUMMARY PAGE SHOW ACTUAL TIME UP TO 24 while graph honors
-  // ALERT THRESHOLD
-
     static long getTimeToByteOverflow() {
-      logger.info(">>>> Actual ttf for bytes: " + timeToByteOverflow);
       timeToByteOverflow = Math.min(timeToByteOverflow, alertThreshold);
       // return as milliseconds
-      return timeToByteOverflow * 1000 * 60;
+      return timeToByteOverflow * 60000;
     }
 
     static long getTimeToCountOverflow() {
-      logger.info(">>>> Actual ttf for count: " + timeToCountOverflow);
       timeToCountOverflow = Math.min(timeToCountOverflow, alertThreshold);
       // return as milliseconds
-      return timeToCountOverflow * 1000 * 60;
+      return timeToCountOverflow * 60000;
     }
 }
 

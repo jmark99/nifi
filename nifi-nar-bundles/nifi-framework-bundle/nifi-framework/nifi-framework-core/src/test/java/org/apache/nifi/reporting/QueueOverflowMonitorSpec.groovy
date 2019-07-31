@@ -62,16 +62,22 @@ class QueueOverflowMonitorSpec extends Specification {
     // y = overflow limit
     // b = current value of bytes/count
     // solve for x
-//    def "Compute overflow estimate"() {
-//        when:
-//        def estimate = QueueOverflowMonitor.computeTimeToFailure(limit, current, prev, delta)
-//
-//        then:
-//        expectedTimeToOverflow == m*x + boolean
-//
-//        where:
-//        limit | current | prev | delta
-//
-//    }
+    def "Compute overflow estimate"() {
+        when:
+        def estimate = QueueOverflowMonitor.getTimeToOverflow(max, current, prev, delta)
+
+        then:
+        double slope = (current - prev) / delta
+        lslope = (long) slope
+        expected = (max  - current) / slope
+        println("estimate: " + estimate)
+        println("expected: " + expected)
+        estimate == expected
+
+        where:
+        max | current | prev | delta
+        1000 | 50 | 10 | 15
+
+    }
 }
 
