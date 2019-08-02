@@ -57,7 +57,7 @@ final class QueueOverflowMonitor {
 
       // - get current time and determine time, 'windowSize' minutes in the past.
       Date endTime = new Date();
-      Date startTime = DateUtils.addMinutes(endTime, -(offset+1));
+      Date startTime = DateUtils.addMinutes(endTime, -(offset));
       logger.info(">>>> startTime: " + startTime);
       logger.info(">>>> endTime:   " + endTime);
 
