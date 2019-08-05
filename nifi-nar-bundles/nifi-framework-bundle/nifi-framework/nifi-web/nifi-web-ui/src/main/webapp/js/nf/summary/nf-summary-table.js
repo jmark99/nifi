@@ -769,7 +769,7 @@
             {
                 id: 'sourceName',
                 field: 'sourceName',
-                name: 'Source Name2',
+                name: 'Source Name',
                 sortable: true,
                 resizable: true,
                 formatter: nfCommon.genericValueFormatter
