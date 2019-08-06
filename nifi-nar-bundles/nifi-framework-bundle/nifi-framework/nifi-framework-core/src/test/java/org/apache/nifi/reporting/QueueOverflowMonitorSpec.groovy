@@ -68,8 +68,8 @@ class QueueOverflowMonitorSpec extends Specification {
 
         then:
         double slope = (current - prev) / delta
-        lslope = (long) slope
-        expected = (max  - current) / slope
+        long lslope = (long) slope
+        long expected = (max  - current) / slope
         println("estimate: " + estimate)
         println("expected: " + expected)
         estimate == expected
@@ -77,6 +77,10 @@ class QueueOverflowMonitorSpec extends Specification {
         where:
         max | current | prev | delta
         1000 | 50 | 10 | 15
+        1000 | 1  | 1  | 15
+        1000 | 99 | 98 | 15
+        1000 | 538 | 536 | 1
+        1000 | 541 | 536 | 2
 
     }
 }

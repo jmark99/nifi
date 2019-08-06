@@ -367,8 +367,6 @@ public class StandardEventAccess implements UserAwareEventAccess {
             final long connectionQueuedBytes = queueSize.getByteCount();
 
             // TODO J
-            logger.info(">>>> TTF alert threshold: " + flowController.getTimeToOverflowGraphThreshold());
-            logger.info(">>>> TTF window size:     " + flowController.getTimeToOverflowWindowSize());
             QueueOverflowMonitor.computeOverflowEstimate(conn, flowController);
             timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
             timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();

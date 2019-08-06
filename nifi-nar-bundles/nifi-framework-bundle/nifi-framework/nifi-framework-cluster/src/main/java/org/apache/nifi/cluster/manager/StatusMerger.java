@@ -70,6 +70,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class StatusMerger {
 
     private static final String ZERO_COUNT = "0";
@@ -77,7 +80,11 @@ public class StatusMerger {
     private static final String ZERO_COUNT_AND_BYTES = "0 (0 bytes)";
     private static final String EMPTY_COUNT = "-";
     private static final String EMPTY_BYTES = "-";
-    private static final String GREATER_THAN_DAY = "> 24:00:00";
+    private static final String GREATER_THAN_DAY = "---";
+    private static final String UNDETERMINED = "---";
+    //private static final String GREATER_THAN_DAY = "> 24:00:00";
+
+    private static final Logger logger = LoggerFactory.getLogger(StatusMerger.class);
 
     public static void merge(final ControllerStatusDTO target, final ControllerStatusDTO toMerge) {
         if (target == null || toMerge == null) {
@@ -962,22 +969,21 @@ public class StatusMerger {
 
     // Format the flowfile count and byte size data for the Time to Failure estimation.
     public static String prettyPrintTTF(final Long msCount, final Long msBytes) {
-//        int ONE_DAY = 86400000;
-//
-//        if ((msBytes >= ONE_DAY) && (msCount >= ONE_DAY)) {
-//            return GREATER_THAN_DAY + " / " + GREATER_THAN_DAY;
-//        }
-//        // default to inf value
-//        String cntEstimate = GREATER_THAN_DAY;
-//        String byteEstimate = GREATER_THAN_DAY;
-//        if (msCount < ONE_DAY) {
-        String cntEstimate = FormatUtils.formatHoursMinutesSeconds(msCount, TimeUnit.MILLISECONDS,
-                false);
-//        }
-//        if (msBytes < ONE_DAY) {
-        String byteEstimate = FormatUtils.formatHoursMinutesSeconds(msBytes, TimeUnit.MILLISECONDS,
-                false);
-//        }
+
+//        String cntEstimate = UNDETERMINED;
+//        String byteEstimate = UNDETERMINED;
+
+        //if (msCount != -1) {
+          String  cntEstimate = FormatUtils
+                .formatHoursMinutesSeconds(Math.abs(msCount), TimeUnit.MILLISECONDS, false);
+        //}
+
+        //if (msBytes != -1) {
+            String byteEstimate = FormatUtils
+                .formatHoursMinutesSeconds(Math.abs(msBytes), TimeUnit.MILLISECONDS, false);
+        //}
+
+        logger.info(">>>> returning: " + cntEstimate + " / " + byteEstimate);
         return cntEstimate + " / " + byteEstimate;
     }
 }
