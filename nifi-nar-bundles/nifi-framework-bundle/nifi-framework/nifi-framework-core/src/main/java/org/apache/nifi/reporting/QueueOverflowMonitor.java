@@ -40,9 +40,9 @@ import org.apache.nifi.web.api.dto.status.StatusSnapshotDTO;
 final class QueueOverflowMonitor {
 
     private static final Logger logger = LoggerFactory.getLogger(QueueOverflowMonitor.class);
-    static long timeToByteOverflow;
-    static long timeToCountOverflow;
-    static long alertThreshold;
+    private static long timeToByteOverflow;
+    private static long timeToCountOverflow;
+    private static long alertThreshold;
 
   static void computeOverflowEstimate(final Connection conn, final FlowController flowController) {
       logger.info(">>>> >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -60,10 +60,7 @@ final class QueueOverflowMonitor {
           .getAggregateSnapshots();
 
       int numberOfSnapshots = snapshots.size();
-
-      //logSnapshots(snapshots);
-
-      // If less than 2 snapshots, set ttf to 0
+      // If less than 2 snapshots, set overfow estimate to 0 since no info is available yet.
       if (numberOfSnapshots < 2) {
         timeToCountOverflow = 0;
         timeToByteOverflow = 0;
@@ -76,8 +73,7 @@ final class QueueOverflowMonitor {
       String maxBytesAsString = conn.getFlowFileQueue().getBackPressureDataSizeThreshold();
       long maxBytes = (long)FormatUtils.getValueFromFormattedDataSize(maxBytesAsString);
 
-      logger.info(">>>> Threshold Values (" + flowController.getInstanceId() + "): " +
-          maxFiles + " / " + maxBytesAsString + " (" + maxBytes + ")" );
+      logger.info(">>>> Threshold Values: " + maxFiles + " / " + maxBytesAsString + " (" + maxBytes + ")" );
 
       int current = numberOfSnapshots - 1;
       int oldest = Math.max(0, numberOfSnapshots - offset);
@@ -102,20 +98,6 @@ final class QueueOverflowMonitor {
       computeTimeToFailureBytes(maxBytes, currentBytes, prevBytes, timeDeltaInMinutes);
       computeTimeToFailureFiles(maxFiles, currentCount, prevCount, timeDeltaInMinutes);
     }
-
-  private static void logSnapshots(List<StatusSnapshotDTO> snapshots) {
-    logger.info(">>>> * Retrieved Snapshots:");
-    int filter = 0;
-    for (StatusSnapshotDTO dto : snapshots) {
-      //if (filter == 0 || filter == snapshots.size()-1) {
-        logger.info(">>>> * date: " + dto.getTimestamp().toString());
-        Map<String,Long> statusMetrics = dto.getStatusMetrics();
-        logger.info(
-            ">>>>\t* queuedCount / queuedBytes ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
-      //}
-      filter++;
-    }
-  }
 
     public static long diffInMinutes(Date date1, Date date2) {
       long diffInMillis = Math.abs(date2.getTime() - date1.getTime());
@@ -153,21 +135,17 @@ final class QueueOverflowMonitor {
 
         // Determine slope, making sure not to divide by 0
         double slope = (current - prev) / (double) delta;
-//        String msg = String.format(">>>> slope: {%5.2f}", slope);
-//        logger.info(msg);
 
-        // if slope is 0 or less then there is no worry of overflow happening. Decided to allow
-        // user to select a threshold value at which time they would like to see graph values
-        // begin tracking. Set to this value.
+        // if slope is 0 or less then there is no worry of overflow happening. nifi.properties
+        // contains a setting that allows the user to select a threshold value at which time they
+        // would like to see graph values begin tracking estimates.
         if (slope <= 0) {
-          logger.info(">>>> Slope <= 0...return " + alertThreshold);
           return alertThreshold;
         }
 
         // Compute the estimated time to overflow
         double estimatedOverflow = (max - current) / slope;
         BigDecimal bd = new BigDecimal(Double.toString(estimatedOverflow));
-        //estimatedOverflow = bd.setScale(0, RoundingMode.HALF_UP).doubleValue();
         estimatedOverflow = BigDecimal.valueOf(estimatedOverflow).setScale(0, RoundingMode.HALF_UP)
           .doubleValue();
 
@@ -175,7 +153,6 @@ final class QueueOverflowMonitor {
             max, current, slope);
 
         long estimateAsLong = (long) (estimatedOverflow);
-        //logger.info(">>>> Overflow Estimate: " + estimateAsLong);
         return estimateAsLong;
     }
 
