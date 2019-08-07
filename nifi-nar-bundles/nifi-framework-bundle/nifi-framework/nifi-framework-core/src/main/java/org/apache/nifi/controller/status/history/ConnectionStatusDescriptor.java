@@ -66,14 +66,14 @@ public enum ConnectionStatusDescriptor {
     // TODO J
 
     TIME_TO_FAILURE_BYTES(
-        "ttfBytes",
+        "estimatedTimeToOverflowBytes",
         "Time to Overflow (bytes)",
         "The predicted time to queue overflow in bytes",
         Formatter.DURATION,
         s -> Long.valueOf(s.getTimeToFailureBytes())),
 
     TIME_TO_FAILURE_COUNT(
-        "ttfCount",
+        "estimatedTimeToOverflowCount",
         "Time to Overflow (count)",
         "The predicted time to queue overflow by flowfile count",
         Formatter.DURATION,
