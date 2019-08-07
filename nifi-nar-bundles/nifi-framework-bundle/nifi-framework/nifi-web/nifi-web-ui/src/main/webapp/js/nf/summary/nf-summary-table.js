@@ -399,13 +399,11 @@
             resizable: true,
             formatter: nfCommon.genericValueFormatter
         };
-        var ttfColumn = {
-            id: 'timeToOverflow',
+        var overflowColumn = {
+            id: 'overflow',
             field: 'timeToOverflow',
-            name: '<span class="output-title">Overflow Est.' +
-                ' (count/bytes)</span>&nbsp;/&nbsp;<span' +
-                ' class="output-size-title">ttfBytes</span>&nbsp;<span style="font-weight:' +
-                ' normal;' + ' overflow: hidden;">15 min</span>',
+            name: '<span class="overflow-count-title">Queue</span>&nbsp;/&nbsp;<span' +
+                ' class="overflow-data-size-title">Size</span> Overflow Est.',
             toolTip: 'Estimated time to threshold overflow (queue count / data size)',
             sortable: true,
             defaultSortAsc: false,
@@ -794,7 +792,7 @@
             queueColumn,
             backpressureColumn,
             outputColumn,
-            ttfColumn
+            overflowColumn
         ];
         // TODO J ^
 
@@ -2311,6 +2309,19 @@
                     var bPercentUseDataSize = nfCommon.isDefinedAndNotNull(b['percentUseBytes']) ? b['percentUseBytes'] : -1;
                     return aPercentUseDataSize - bPercentUseDataSize;
                 }
+            } else if (sortDetails.columnId === 'overflow') {
+                var mod = sortState[tableId].count % 4;
+                if (mod < 2) {
+                    $('#' + tableId + ' span.overflow-count-title').addClass('sorted');
+                    var aCountDuration = nfCommon.parseDuration(a['timeToFailureCount']);
+                    var bCountDuration = nfCommon.parseDuration(b['timeToFailureCount']);
+                    return aCountDuration - bCountDuration;
+                } else {
+                    $('#' + tableId + ' span.overflow-data-size-title').addClass('sorted');
+                    var aSizeDuration = nfCommon.parseDuration(a['timeToFailureBytes']);
+                    var bSizeDuration = nfCommon.parseDuration(b['timeToFailureBytes']);
+                    return aSizeDuration - bSizeDuration;
+                }
             } else if (sortDetails.columnId === 'sent' || sortDetails.columnId === 'received' || sortDetails.columnId === 'input' || sortDetails.columnId === 'output' || sortDetails.columnId === 'transferred') {
                 var aSplit = a[sortDetails.columnId].split(/\(([^)]+)\)/);
                 var bSplit = b[sortDetails.columnId].split(/\(([^)]+)\)/);
@@ -2364,6 +2375,8 @@
         $('#' + tableId + ' span.queued-size-title').removeClass('sorted');
         $('#' + tableId + ' span.backpressure-object-title').removeClass('sorted');
         $('#' + tableId + ' span.backpressure-data-size-title').removeClass('sorted');
+        $('#' + tableId + ' span.overflow-count-title').removeClass('sorted');
+        $('#' + tableId + ' span.overflow-data-size-title').removeClass('sorted');
         $('#' + tableId + ' span.input-title').removeClass('sorted');
         $('#' + tableId + ' span.input-size-title').removeClass('sorted');
         $('#' + tableId + ' span.output-title').removeClass('sorted');
@@ -2792,7 +2805,9 @@
                         percentUseCount: snapshot.percentUseCount,
                         percentUseBytes: snapshot.percentUseBytes,
                         output: snapshot.output,
-                        timeToOverflow: snapshot.timeToOverflow
+                        timeToOverflow: snapshot.timeToOverflow,
+                        timeToFailureCount: snapshot.timeToFailureCount,
+                        timeToFailureBytes: snapshot.timeToFailureBytes
                     });
                 });
 

@@ -80,9 +80,6 @@ public class StatusMerger {
     private static final String ZERO_COUNT_AND_BYTES = "0 (0 bytes)";
     private static final String EMPTY_COUNT = "-";
     private static final String EMPTY_BYTES = "-";
-    private static final String GREATER_THAN_DAY = "---";
-    private static final String UNDETERMINED = "---";
-    //private static final String GREATER_THAN_DAY = "> 24:00:00";
 
     private static final Logger logger = LoggerFactory.getLogger(StatusMerger.class);
 
@@ -969,20 +966,10 @@ public class StatusMerger {
 
     // Format the flowfile count and byte size data for the Time to Failure estimation.
     public static String prettyPrintTTF(final Long msCount, final Long msBytes) {
-
-//        String cntEstimate = UNDETERMINED;
-//        String byteEstimate = UNDETERMINED;
-
-        //if (msCount != -1) {
-          String  cntEstimate = FormatUtils
-                .formatHoursMinutesSeconds(Math.abs(msCount), TimeUnit.MILLISECONDS, false);
-        //}
-
-        //if (msBytes != -1) {
-            String byteEstimate = FormatUtils
-                .formatHoursMinutesSeconds(Math.abs(msBytes), TimeUnit.MILLISECONDS, false);
-        //}
-
+        String  cntEstimate = FormatUtils
+            .formatHoursMinutesSeconds(Math.abs(msCount), TimeUnit.MILLISECONDS, false);
+        String byteEstimate = FormatUtils
+            .formatHoursMinutesSeconds(Math.abs(msBytes), TimeUnit.MILLISECONDS, false);
         logger.info(">>>> returning: " + cntEstimate + " / " + byteEstimate);
         return cntEstimate + " / " + byteEstimate;
     }

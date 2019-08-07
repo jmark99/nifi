@@ -43,7 +43,6 @@ final class QueueOverflowMonitor {
     static long timeToByteOverflow;
     static long timeToCountOverflow;
     static long alertThreshold;
-    static final Long UNDEFINED = -1L;
 
   static void computeOverflowEstimate(final Connection conn, final FlowController flowController) {
       logger.info(">>>> >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -62,7 +61,7 @@ final class QueueOverflowMonitor {
 
       int numberOfSnapshots = snapshots.size();
 
-      logSnapshots(snapshots);
+      //logSnapshots(snapshots);
 
       // If less than 2 snapshots, set ttf to 0
       if (numberOfSnapshots < 2) {
@@ -77,7 +76,8 @@ final class QueueOverflowMonitor {
       String maxBytesAsString = conn.getFlowFileQueue().getBackPressureDataSizeThreshold();
       long maxBytes = (long)FormatUtils.getValueFromFormattedDataSize(maxBytesAsString);
 
-      logger.info(">>>> Threshold Values: " + maxBytesAsString + " (" + maxBytes + ") / " + maxFiles);
+      logger.info(">>>> Threshold Values (" + flowController.getInstanceId() + "): " +
+          maxFiles + " / " + maxBytesAsString + " (" + maxBytes + ")" );
 
       int current = numberOfSnapshots - 1;
       int oldest = Math.max(0, numberOfSnapshots - offset);
@@ -153,8 +153,8 @@ final class QueueOverflowMonitor {
 
         // Determine slope, making sure not to divide by 0
         double slope = (current - prev) / (double) delta;
-        String msg = String.format(">>>> slope: {%5.2f}", slope);
-        logger.info(msg);
+//        String msg = String.format(">>>> slope: {%5.2f}", slope);
+//        logger.info(msg);
 
         // if slope is 0 or less then there is no worry of overflow happening. Decided to allow
         // user to select a threshold value at which time they would like to see graph values
@@ -171,11 +171,11 @@ final class QueueOverflowMonitor {
         estimatedOverflow = BigDecimal.valueOf(estimatedOverflow).setScale(0, RoundingMode.HALF_UP)
           .doubleValue();
 
-        logger.info(">>>> estimatedOverflow -> {} : ({} - {}) / {}", estimatedOverflow,
+        logger.info(">>>> estimatedOverflow -> {} = ({} - {}) / {}", estimatedOverflow,
             max, current, slope);
 
         long estimateAsLong = (long) (estimatedOverflow);
-        logger.info(">>>> Overflow Estimate: " + estimateAsLong);
+        //logger.info(">>>> Overflow Estimate: " + estimateAsLong);
         return estimateAsLong;
     }
 
