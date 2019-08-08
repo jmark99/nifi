@@ -21,6 +21,7 @@ import org.apache.nifi.controller.status.RunStatus;
 import org.apache.nifi.controller.status.TransmissionStatus;
 import org.apache.nifi.registry.flow.VersionedFlowState;
 import org.apache.nifi.util.FormatUtils;
+import org.apache.nifi.util.NiFiProperties;
 import org.apache.nifi.web.api.dto.CounterDTO;
 import org.apache.nifi.web.api.dto.CountersDTO;
 import org.apache.nifi.web.api.dto.CountersSnapshotDTO;
@@ -81,7 +82,13 @@ public class StatusMerger {
     private static final String EMPTY_COUNT = "-";
     private static final String EMPTY_BYTES = "-";
 
+    private static NiFiProperties properties;
+
     private static final Logger logger = LoggerFactory.getLogger(StatusMerger.class);
+
+    public static void setProperties(NiFiProperties properties) {
+        StatusMerger.properties = properties;
+    }
 
     public static void merge(final ControllerStatusDTO target, final ControllerStatusDTO toMerge) {
         if (target == null || toMerge == null) {
@@ -517,7 +524,7 @@ public class StatusMerger {
         target.setQueuedSize(formatDataSize(target.getBytesQueued()));
         target.setInput(prettyPrint(target.getFlowFilesIn(), target.getBytesIn()));
         target.setOutput(prettyPrint(target.getFlowFilesOut(), target.getBytesOut()));
-        target.setTimeToOverflow(prettyPrintTTF(target.getTimeToFailureCount(),
+        target.setTimeToOverflow(prettyPrintOverflowEstimate(target.getTimeToFailureCount(),
             target.getTimeToFailureBytes()));
     }
 
@@ -968,13 +975,20 @@ public class StatusMerger {
         return formatCount(count) + " (" + formatDataSize(bytes) + ")";
     }
 
-    // Format the flowfile count and byte size data for the Time to Failure estimation.
-    public static String prettyPrintTTF(final Long msCount, final Long msBytes) {
-        String  cntEstimate = FormatUtils
+    // Format the flowfile count and byte size data for the Time to Overflow estimation.
+    public static String prettyPrintOverflowEstimate(final Long msCount, final Long msBytes) {
+
+        String formattedCountEstimate = FormatUtils
             .formatHoursMinutesSeconds(Math.abs(msCount), TimeUnit.MILLISECONDS, false);
-        String byteEstimate = FormatUtils
+        String formattedByteEstimate = FormatUtils
             .formatHoursMinutesSeconds(Math.abs(msBytes), TimeUnit.MILLISECONDS, false);
-        logger.info(">>>> returning: " + cntEstimate + " / " + byteEstimate);
-        return cntEstimate + " / " + byteEstimate;
+
+        if (msCount/60000 >= properties.getTimeToOverflowGraphThreshold()) {
+            formattedCountEstimate = "> " + formattedCountEstimate;
+        }
+        if (msBytes/60000 >= properties.getTimeToOverflowGraphThreshold()) {
+            formattedByteEstimate = "> " + formattedByteEstimate;
+        }
+        return formattedCountEstimate + " / " + formattedByteEstimate;
     }
 }

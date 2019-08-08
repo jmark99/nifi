@@ -376,7 +376,7 @@ class PermissionBasedStatusMergerSpec extends Specification {
 
     def "Verify Summary Page Time-to-Overflow Converts Correctly"() {
         when:
-        def prettyString = StatusMerger.prettyPrintTTF(msCount, msBytes)
+        def prettyString = StatusMerger.prettyPrintOverflowEstimate(msCount, msBytes)
 
         then:
         prettyString == ms2time(msCount) + " / " + ms2time(msBytes)

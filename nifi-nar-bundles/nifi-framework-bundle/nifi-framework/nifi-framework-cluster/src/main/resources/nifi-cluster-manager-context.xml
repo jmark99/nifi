@@ -56,4 +56,14 @@
     <bean id="heartbeatMonitor" class="org.apache.nifi.cluster.spring.HeartbeatMonitorFactoryBean">
         <property name="properties" ref="nifiProperties"/>
     </bean>
+
+    <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+        <property name="staticMethod"
+                  value="org.apache.nifi.cluster.manager.StatusMerger.setProperties" />
+        <property name="arguments">
+            <list>
+                <ref bean="nifiProperties" />
+            </list>
+        </property>
+    </bean>
 </beans>
