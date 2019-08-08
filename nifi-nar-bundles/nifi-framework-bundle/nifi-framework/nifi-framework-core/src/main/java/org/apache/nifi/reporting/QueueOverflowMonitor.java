@@ -119,7 +119,7 @@ final class QueueOverflowMonitor {
     }
 
     // if not enough time has passed to have a delta value then set graph to 0
-    if (delta <= 0L) {
+    if (delta <= alertThreshold) {
       return 0;
     }
 
