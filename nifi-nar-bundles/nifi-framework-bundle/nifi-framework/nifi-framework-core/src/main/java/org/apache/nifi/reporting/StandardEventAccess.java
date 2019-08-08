@@ -68,8 +68,6 @@ public class StandardEventAccess implements UserAwareEventAccess {
     private final FlowFileEventRepository flowFileEventRepository;
     private final FlowController flowController;
 
-    private static final Logger logger = LoggerFactory.getLogger(StandardEventAccess.class);
-
     public StandardEventAccess(final FlowController flowController, final FlowFileEventRepository flowFileEventRepository) {
         this.flowController = flowController;
         this.flowFileEventRepository = flowFileEventRepository;
@@ -241,8 +239,8 @@ public class StandardEventAccess implements UserAwareEventAccess {
         long bytesSent = 0L;
         int flowFilesTransferred = 0;
         long bytesTransferred = 0;
-        long timeToFailureCount = 0L;
-        long timeToFailureBytes = 0L;
+        long timeToFailureCount = 0;
+        long timeToFailureBytes = 0;
 
         final boolean populateChildStatuses = currentDepth <= recursiveStatusDepth;
 
@@ -365,7 +363,6 @@ public class StandardEventAccess implements UserAwareEventAccess {
             final QueueSize queueSize = conn.getFlowFileQueue().size();
             final int connectionQueuedCount = queueSize.getObjectCount();
             final long connectionQueuedBytes = queueSize.getByteCount();
-
             if (connectionQueuedCount > 0) {
                 connStatus.setQueuedBytes(connectionQueuedBytes);
                 connStatus.setQueuedCount(connectionQueuedCount);
@@ -381,7 +378,6 @@ public class StandardEventAccess implements UserAwareEventAccess {
             QueueOverflowMonitor.computeOverflowEstimate(conn, flowController);
             timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
             timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
-
             connStatus.setTimeToFailureBytes(timeToFailureBytes);
             connStatus.setTimeToFailureCount(timeToFailureCount);
 

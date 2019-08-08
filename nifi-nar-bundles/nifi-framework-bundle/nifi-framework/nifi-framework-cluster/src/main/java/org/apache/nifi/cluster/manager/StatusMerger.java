@@ -71,20 +71,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class StatusMerger {
-
     private static final String ZERO_COUNT = "0";
     private static final String ZERO_BYTES = "0 bytes";
     private static final String ZERO_COUNT_AND_BYTES = "0 (0 bytes)";
     private static final String EMPTY_COUNT = "-";
     private static final String EMPTY_BYTES = "-";
-
     private static NiFiProperties properties;
-
-    private static final Logger logger = LoggerFactory.getLogger(StatusMerger.class);
 
     public static void setProperties(NiFiProperties properties) {
         StatusMerger.properties = properties;
@@ -983,10 +976,10 @@ public class StatusMerger {
         String formattedByteEstimate = FormatUtils
             .formatHoursMinutesSeconds(Math.abs(msBytes), TimeUnit.MILLISECONDS, false);
 
-        if (msCount/60000 >= properties.getTimeToOverflowGraphThreshold()) {
+        if (msCount >= properties.getTimeToOverflowGraphThreshold() * 60000) {
             formattedCountEstimate = "> " + formattedCountEstimate;
         }
-        if (msBytes/60000 >= properties.getTimeToOverflowGraphThreshold()) {
+        if (msBytes >= properties.getTimeToOverflowGraphThreshold() * 60000) {
             formattedByteEstimate = "> " + formattedByteEstimate;
         }
         return formattedCountEstimate + " / " + formattedByteEstimate;
