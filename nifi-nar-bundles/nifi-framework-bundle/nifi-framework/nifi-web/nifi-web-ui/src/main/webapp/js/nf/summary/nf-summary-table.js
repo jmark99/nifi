@@ -794,7 +794,6 @@
             outputColumn,
             overflowColumn
         ];
-        // TODO J ^
 
         // add an action column if appropriate
         if (isClustered || isInShell || nfCommon.SUPPORTS_SVG) {

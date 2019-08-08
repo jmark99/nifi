@@ -18,7 +18,6 @@ package org.apache.nifi.controller.status;
 
 import org.apache.nifi.processor.DataUnit;
 
-// TODO J
 /**
  */
 public class ConnectionStatus implements Cloneable {
@@ -227,7 +226,6 @@ public class ConnectionStatus implements Cloneable {
         clonedObj.maxQueuedCount = maxQueuedCount;
         clonedObj.timeToFailureBytes = timeToFailureBytes;
         clonedObj.timeToFailureCount = timeToFailureCount;
-//        clonedObj.timeToOverflow = timeToOverflow;
         return clonedObj;
     }
 
@@ -272,8 +270,6 @@ public class ConnectionStatus implements Cloneable {
         builder.append(timeToFailureCount);
         builder.append(", timeToFailureBytes=");
         builder.append(timeToFailureBytes);
-//        builder.append(", timeToOverflow=");
-//        builder.append(timeToOverflow);
         builder.append("]");
         return builder.toString();
     }

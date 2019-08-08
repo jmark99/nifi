@@ -1050,7 +1050,6 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
         return encryptor;
     }
 
-    // TODO J
     public int getTimeToOverflowGraphThreshold() {
         return nifiProperties.getTimeToOverflowGraphThreshold();
     }

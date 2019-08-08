@@ -63,8 +63,6 @@ public enum ConnectionStatusDescriptor {
         Formatter.COUNT,
         s -> Long.valueOf(s.getQueuedCount())),
 
-    // TODO J
-
     TIME_TO_FAILURE_BYTES(
         "estimatedTimeToOverflowBytes",
         "Time to Overflow (bytes)",

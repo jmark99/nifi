@@ -279,7 +279,6 @@ public abstract class NiFiProperties {
     public static final String DEFAULT_FLOW_CONFIGURATION_ARCHIVE_MAX_STORAGE = "500 MB";
     public static final String DEFAULT_SECURITY_USER_OIDC_CONNECT_TIMEOUT = "5 secs";
     public static final String DEFAULT_SECURITY_USER_OIDC_READ_TIMEOUT = "5 secs";
-    // TODO J
     public static final int DEFAULT_TIME_TO_OVERFLOW_WINDOW_SIZE = 15;
     public static final int DEFAULT_TIME_TO_OVERFLOW_GRAPH_THRESHOLD = 480;
 
@@ -1271,7 +1270,6 @@ public abstract class NiFiProperties {
         }
     }
 
-    // TODO J
     // Retrieve the threshold time before which the status history overflow graph will begin
     // displaying updates.
     public int getTimeToOverflowGraphThreshold() {

@@ -378,7 +378,6 @@ public class ProcessGroupStatus implements Cloneable {
         builder.append(flowFilesSent);
         builder.append(", bytesSent=");
         builder.append(bytesSent);
-        // TODO J  is this needed
         builder.append(", estimatedTimeToOverflowBytes=");
         builder.append(timeToFailureBytes);
         builder.append(", estimatedTimeToOverflowCount=");

@@ -57,6 +57,8 @@
         <property name="properties" ref="nifiProperties"/>
     </bean>
 
+    <!-- Added to allow StatusMerger access to nifi.propertes to obtain threshold overflow values
+     -->
     <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
         <property name="staticMethod"
                   value="org.apache.nifi.cluster.manager.StatusMerger.setProperties" />

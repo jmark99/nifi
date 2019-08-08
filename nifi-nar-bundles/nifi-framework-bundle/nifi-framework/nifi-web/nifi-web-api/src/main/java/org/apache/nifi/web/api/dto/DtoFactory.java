@@ -1174,7 +1174,6 @@ public final class DtoFactory {
         snapshot.setFlowFilesOut(connectionStatus.getOutputCount());
         snapshot.setBytesOut(connectionStatus.getOutputBytes());
 
-        // TODO J
         snapshot.setTimeToFailureBytes(connectionStatus.getTimeToFailureBytes());
         snapshot.setTimeToFailureCount(connectionStatus.getTimeToFailureCount());
 

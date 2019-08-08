@@ -366,14 +366,6 @@ public class StandardEventAccess implements UserAwareEventAccess {
             final int connectionQueuedCount = queueSize.getObjectCount();
             final long connectionQueuedBytes = queueSize.getByteCount();
 
-            // TODO J
-            QueueOverflowMonitor.computeOverflowEstimate(conn, flowController);
-            timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
-            timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
-
-            connStatus.setTimeToFailureBytes(timeToFailureBytes);
-            connStatus.setTimeToFailureCount(timeToFailureCount);
-
             if (connectionQueuedCount > 0) {
                 connStatus.setQueuedBytes(connectionQueuedBytes);
                 connStatus.setQueuedCount(connectionQueuedCount);
@@ -385,6 +377,13 @@ public class StandardEventAccess implements UserAwareEventAccess {
 
             queuedCount += connectionQueuedCount;
             queuedContentSize += connectionQueuedBytes;
+
+            QueueOverflowMonitor.computeOverflowEstimate(conn, flowController);
+            timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
+            timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
+
+            connStatus.setTimeToFailureBytes(timeToFailureBytes);
+            connStatus.setTimeToFailureCount(timeToFailureCount);
 
             final Connectable source = conn.getSource();
             if (ConnectableType.REMOTE_OUTPUT_PORT.equals(source.getConnectableType())) {

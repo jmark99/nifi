@@ -45,8 +45,6 @@ final class QueueOverflowMonitor {
     private static long alertThreshold;
 
   static void computeOverflowEstimate(final Connection conn, final FlowController flowController) {
-      logger.info(">>>> >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-      logger.info(">>>> ==== Compute time to fail for Connection: " + conn.getName());
 
       alertThreshold = (long) flowController.getTimeToOverflowGraphThreshold();
       timeToCountOverflow = 0;
@@ -60,20 +58,16 @@ final class QueueOverflowMonitor {
           .getAggregateSnapshots();
 
       int numberOfSnapshots = snapshots.size();
-      // If less than 2 snapshots, set overfow estimate to 0 since no info is available yet.
+      // If less than 2 snapshots, set overflow estimate to 0 since no info is available yet.
       if (numberOfSnapshots < 2) {
         timeToCountOverflow = 0;
         timeToByteOverflow = 0;
-        logger.info(">>>> numberOfSnapshots: " + numberOfSnapshots +"; (" + timeToByteOverflow +
-            ", " + timeToCountOverflow  + ")");
         return;
       }
       // get threshold information
       long maxFiles = conn.getFlowFileQueue().getBackPressureObjectThreshold();
       String maxBytesAsString = conn.getFlowFileQueue().getBackPressureDataSizeThreshold();
       long maxBytes = (long)FormatUtils.getValueFromFormattedDataSize(maxBytesAsString);
-
-      logger.info(">>>> Threshold Values: " + maxFiles + " / " + maxBytesAsString + " (" + maxBytes + ")" );
 
       int current = numberOfSnapshots - 1;
       int oldest = Math.max(0, numberOfSnapshots - offset);
@@ -135,6 +129,8 @@ final class QueueOverflowMonitor {
 
         // Determine slope, making sure not to divide by 0
         double slope = (current - prev) / (double) delta;
+        slope = BigDecimal.valueOf(slope).setScale(0, RoundingMode.HALF_UP)
+          .doubleValue();
 
         // if slope is 0 or less then there is no worry of overflow happening. nifi.properties
         // contains a setting that allows the user to select a threshold value at which time they
