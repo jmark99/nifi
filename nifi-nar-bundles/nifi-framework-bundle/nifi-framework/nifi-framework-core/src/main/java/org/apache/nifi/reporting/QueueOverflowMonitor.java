@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -54,6 +55,8 @@ final class QueueOverflowMonitor {
     List<StatusSnapshotDTO> snapshots = flowController
         .getConnectionStatusHistory(conn.getIdentifier(), null, null, offset)
         .getAggregateSnapshots();
+
+    logSnapshots(snapshots);
 
     int numberOfSnapshots = snapshots.size();
     // If less than 2 snapshots, set overflow estimate to 0 since no info is available yet.
@@ -91,6 +94,17 @@ final class QueueOverflowMonitor {
     computeTimeToFailureFiles(maxFiles, currentCount, prevCount, timeDeltaInMinutes);
   }
 
+  private static void logSnapshots(List<StatusSnapshotDTO> snapshots) {
+    logger.info(">>>> Retrieved Snapshots:");
+    int filter = 0;
+    for (StatusSnapshotDTO dto : snapshots) {
+      logger.info(">>>> date: " + dto.getTimestamp().toString());
+      Map<String,Long> statusMetrics = dto.getStatusMetrics();
+      logger.info(
+          ">>>>\tqueuedCount / queuedBytes ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
+    }
+  }
+
   public static long diffInMinutes(Date date1, Date date2) {
     long diffInMillis = Math.abs(date2.getTime() - date1.getTime());
     return TimeUnit.MINUTES.convert(diffInMillis, TimeUnit.MILLISECONDS);
@@ -118,9 +132,9 @@ final class QueueOverflowMonitor {
       return 0L;
     }
 
-    // if not enough time has passed to have a delta value then set graph to 0
-    if (delta <= alertThreshold) {
-      return 0;
+    // if not enough time has passed to have a delta value then set graph to alertThreshold
+    if (delta <= 0) {
+      return alertThreshold;
     }
 
     // Determine slope, making sure not to divide by 0
