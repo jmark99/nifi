@@ -56,15 +56,16 @@ final class QueueOverflowMonitor {
         .getConnectionStatusHistory(conn.getIdentifier(), null, null, offset)
         .getAggregateSnapshots();
 
-    logSnapshots(snapshots);
-
     int numberOfSnapshots = snapshots.size();
-    // If less than 2 snapshots, set overflow estimate to 0 since no info is available yet.
+    logger.info(">>>> number of snapshots retrieved: " + numberOfSnapshots);
+
+    // If less than 2 snapshots cannot create an estimate.
     if (numberOfSnapshots < 2) {
-      timeToCountOverflow = 0;
-      timeToByteOverflow = 0;
       return;
     }
+
+    logSnapshots(snapshots);
+
     // get threshold information
     long maxFiles = conn.getFlowFileQueue().getBackPressureObjectThreshold();
     String maxBytesAsString = conn.getFlowFileQueue().getBackPressureDataSizeThreshold();
@@ -98,10 +99,11 @@ final class QueueOverflowMonitor {
     logger.info(">>>> Retrieved Snapshots:");
     int filter = 0;
     for (StatusSnapshotDTO dto : snapshots) {
-      logger.info(">>>> date: " + dto.getTimestamp().toString());
       Map<String,Long> statusMetrics = dto.getStatusMetrics();
-      logger.info(
-          ">>>>\tqueuedCount / queuedBytes ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
+      if (filter == 0 || filter == snapshots.size()-1) {
+        logger.info(">>>> date: " + dto.getTimestamp().toString() + "\t ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
+      }
+      filter++;
     }
   }
 
@@ -154,8 +156,8 @@ final class QueueOverflowMonitor {
         .doubleValue();
 
     logger
-        .info(">>>> estimatedOverflow -> {} secs = ({} - {}) / {}", estimatedOverflow, max, current,
-            slope);
+        .info(">>>> estimatedOverflow -> {} min(s) = ({} - {}) / {}", estimatedOverflow, max,
+            current, slope);
 
     // Return estimate as milliseconds
     return (long) (estimatedOverflow * 60000);
