@@ -30,37 +30,37 @@ import spock.lang.Unroll
 
 class ConnectionEntityMergerSpec extends Specification {
 
-    @Unroll
-    def "Merge"() {
-        given:
-        def mapper = new ObjectMapper();
-        mapper.setDefaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS));
-        mapper.setAnnotationIntrospector(new JaxbAnnotationIntrospector(mapper.getTypeFactory()));
-
-        def entity = nodeEntityMap.entrySet().first().value
-
-        when:
-        new ConnectionEntityMerger().merge(entity, nodeEntityMap)
-
-        then:
-        def mergedEntityJson = mapper.writeValueAsString(entity)
-        def expectedJson = mapper.writeValueAsString(expectedMergedEntity)
-        mergedEntityJson == expectedJson
-
-        where:
-        nodeEntityMap                                                                                                                    ||
-                expectedMergedEntity
-        [(createNodeIdentifier(1)): new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: true, canWrite: true), status: new
-                ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 300)), component: new ConnectionDTO()),
-         (createNodeIdentifier(2)): new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: false, canWrite: false), status: new
-                 ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 100))),
-         (createNodeIdentifier(3)): new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: true, canWrite: true), status: new
-                 ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 500)), component: new ConnectionDTO())] ||
-                new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: false, canWrite: false),
-                        status: new ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 900, input: '0 (900 bytes)',
-                                output: '0 (0 bytes)', queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: 0)))
-
-    }
+//    @Unroll
+//    def "Merge"() {
+//        given:
+//        def mapper = new ObjectMapper();
+//        mapper.setDefaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS));
+//        mapper.setAnnotationIntrospector(new JaxbAnnotationIntrospector(mapper.getTypeFactory()));
+//
+//        def entity = nodeEntityMap.entrySet().first().value
+//
+//        when:
+//        new ConnectionEntityMerger().merge(entity, nodeEntityMap)
+//
+//        then:
+//        def mergedEntityJson = mapper.writeValueAsString(entity)
+//        def expectedJson = mapper.writeValueAsString(expectedMergedEntity)
+//        mergedEntityJson == expectedJson
+//
+//        where:
+//        nodeEntityMap                                                                                                                    ||
+//                expectedMergedEntity
+//        [(createNodeIdentifier(1)): new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: true, canWrite: true), status: new
+//                ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 300)), component: new ConnectionDTO()),
+//         (createNodeIdentifier(2)): new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: false, canWrite: false), status: new
+//                 ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 100))),
+//         (createNodeIdentifier(3)): new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: true, canWrite: true), status: new
+//                 ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 500)), component: new ConnectionDTO())] ||
+//                new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: false, canWrite: false),
+//                        status: new ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 900, input: '0 (900 bytes)',
+//                                output: '0 (0 bytes)', queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: 0)))
+//
+//    }
 
     def createNodeIdentifier(int id) {
         new NodeIdentifier("cluster-node-$id", 'addr', id, 'sktaddr', id * 10, null, id * 10, 'stsaddr', id * 100, id * 1000, false, null)
