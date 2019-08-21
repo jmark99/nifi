@@ -64,85 +64,103 @@ class PermissionBasedStatusMergerSpec extends Specification {
                 new ConnectionStatusDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden', destinationName: 'hidden')
     }
 
-//    def "MergeConnectionStatusSnapshotDTO"() {
-//        given:
-//        def mapper = new ObjectMapper();
-//        mapper.setDefaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS));
-//        mapper.setAnnotationIntrospector(new JaxbAnnotationIntrospector(mapper.getTypeFactory()));
-//
-//        def merger = new StatusMerger()
-//
-//        when:
-//        println(">>>> target: " + mapper.writeValueAsString(target))
-//        println(">>>> toMerge: " + mapper.writeValueAsString(toMerge))
-//        println(">>>> expectedDto: " + mapper.writeValueAsString(expectedDto))
-//
-//        merger.merge(target, targetCanRead, toMerge, toMergeCanRead)
-//
-//        then:
-//        def returnedJson = mapper.writeValueAsString(target)
-//
-//        println(">>>> returnedJson: " + returnedJson)
-//
-//        def expectedJson = mapper.writeValueAsString(expectedDto)
-//
-//        println(">>>> expectedJson: " + expectedJson)
-//
-//        returnedJson == expectedJson
-//
-//        where:
-//        target | targetCanRead | toMerge | toMergeCanRead || expectedDto
-//        // case 1
-//        new ConnectionStatusSnapshotDTO(
-//                groupId: 'real',
-//                id: 'real',
-//                name: 'real',
-//                sourceId: 'real',
-//                sourceName: 'real',
-//                destinationId: 'real',
-//                destinationName: 'real') | true |
-//        new ConnectionStatusSnapshotDTO(
-//                groupId: 'hidden',
-//                id: 'hidden',
-//                name: 'hidden',
-//                sourceId: 'hidden',
-//                sourceName: 'hidden',
-//                destinationId: 'hidden',
-//                destinationName: 'hidden') |false ||
-//        new ConnectionStatusSnapshotDTO(
-//                groupId: 'hidden',
-//                id: 'hidden',
-//                name: 'hidden',
-//                sourceId: 'hidden',
-//                sourceName: 'hidden',
-//                destinationId: 'hidden',
-//                destinationName: 'hidden')
+    def "Merge ConnectionStatusSnapshotDTO"() {
+        given:
+        def mapper = new ObjectMapper();
+        mapper.setDefaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS));
+        mapper.setAnnotationIntrospector(new JaxbAnnotationIntrospector(mapper.getTypeFactory()));
+
+        def merger = new StatusMerger()
+
+        when:
+        merger.merge(target, targetCanRead, toMerge, toMergeCanRead)
+
+        then:
+        def returnedJson = mapper.writeValueAsString(target)
+        def expectedJson = mapper.writeValueAsString(expectedDto)
+        returnedJson == expectedJson
+
+        where:
+        target | targetCanRead | toMerge | toMergeCanRead || expectedDto
+        // case 1
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'real',
+                id: 'real',
+                name: 'real',
+                sourceId: 'real',
+                sourceName: 'real',
+                destinationId: 'real',
+                destinationName: 'real') | true    |
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'hidden',
+                id: 'hidden',
+                name: 'hidden',
+                sourceId: 'hidden',
+                sourceName: 'hidden',
+                destinationId: 'hidden',
+                destinationName: 'hidden') | false ||
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'hidden',
+                id: 'hidden',
+                name: 'hidden',
+                sourceId: 'hidden',
+                sourceName: 'hidden',
+                destinationId: 'hidden',
+                destinationName: 'hidden',
+                input: '0 (0 bytes)',
+                output: '0 (0 bytes)',
+                queued: '0 (0 bytes)',
+                queuedSize: '0 bytes',
+                queuedCount: '0',
+                timeToOverflow: '00:00:00 / 00:00:00',
+                flowFilesIn: 0,
+                bytesIn: 0,
+                flowFilesOut: 0,
+                bytesOut: 0,
+                flowFilesQueued: 0,
+                bytesQueued: 0,
+                timeToFailureBytes: 0,
+                timeToFailureCount: 0)
         // case 2
-//        new ConnectionStatusSnapshotDTO(
-//                groupId: 'hidden',
-//                id: 'hidden',
-//                name: 'hidden',
-//                sourceId: 'hidden',
-//                sourceName: 'hidden',
-//                destinationId: 'hidden',
-//                destinationName: 'hidden') | false |
-//        new ConnectionStatusSnapshotDTO(
-//                groupId: 'real',
-//                id: 'real',
-//                name: 'real',
-//                sourceId: 'real',
-//                sourceName: 'real',
-//                destinationId: 'real',
-//                destinationName: 'real') | true ||
-//        new ConnectionStatusSnapshotDTO(
-//                groupId: 'hidden',
-//                id: 'hidden',
-//                name: 'hidden',
-//                sourceId: 'hidden',
-//                sourceName: 'hidden',
-//                destinationId: 'hidden',
-//                destinationName: 'hidden')
-//    }
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'hidden',
+                id: 'hidden',
+                name: 'hidden',
+                sourceId: 'hidden',
+                sourceName: 'hidden',
+                destinationId: 'hidden',
+                destinationName: 'hidden') | false |
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'real',
+                id: 'real',
+                name: 'real',
+                sourceId: 'real',
+                sourceName: 'real',
+                destinationId: 'real',
+                destinationName: 'real') | true ||
+        new ConnectionStatusSnapshotDTO(
+                groupId: 'hidden',
+                id: 'hidden',
+                name: 'hidden',
+                sourceId: 'hidden',
+                sourceName: 'hidden',
+                destinationId: 'hidden',
+                destinationName: 'hidden',
+                input: '0 (0 bytes)',
+                output: '0 (0 bytes)',
+                queued: '0 (0 bytes)',
+                queuedSize: '0 bytes',
+                queuedCount: '0',
+                timeToOverflow: '00:00:00 / 00:00:00',
+                flowFilesIn: 0,
+                bytesIn: 0,
+                flowFilesOut: 0,
+                bytesOut: 0,
+                flowFilesQueued: 0,
+                bytesQueued: 0,
+                timeToFailureBytes: 0,
+                timeToFailureCount: 0)
+    }
 
     def "Merge PortStatusDTO"() {
         given:
