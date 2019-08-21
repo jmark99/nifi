@@ -71,9 +71,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 public class StatusMerger {
     private static final String ZERO_COUNT = "0";
     private static final String ZERO_BYTES = "0 bytes";
@@ -477,20 +474,11 @@ public class StatusMerger {
 
     public static void merge(final ConnectionStatusSnapshotDTO target, final boolean targetReadablePermission, final ConnectionStatusSnapshotDTO toMerge,
                              final boolean toMergeReadablePermission) {
-        System.err.println(">>>> TEST MERGE");
         if (target == null || toMerge == null) {
-            if (target == null) {
-                System.err.println(">>>> target == null");
-            }
-            if (toMerge == null) {
-                System.err.println(">>>> toMerge == null");
-            }
-            System.err.println(">>>> return");
             return;
         }
 
         if (targetReadablePermission && !toMergeReadablePermission) {
-            System.err.println(">>>> targetReadablePermission && !toMergeReadablePermission");
             target.setGroupId(toMerge.getGroupId());
             target.setId(toMerge.getId());
             target.setName(toMerge.getName());
@@ -498,6 +486,7 @@ public class StatusMerger {
             target.setSourceName(toMerge.getSourceName());
             target.setDestinationId(toMerge.getDestinationId());
             target.setDestinationName(toMerge.getDestinationName());
+            target.setTimeToOverflow(toMerge.getTimeToOverflow());
         }
 
         target.setFlowFilesIn(target.getFlowFilesIn() + toMerge.getFlowFilesIn());
@@ -518,14 +507,6 @@ public class StatusMerger {
             target.setPercentUseCount(toMerge.getPercentUseCount());
         } else if (toMerge.getPercentUseCount() != null) {
             target.setPercentUseCount(Math.max(target.getPercentUseCount(), toMerge.getPercentUseCount()));
-        }
-
-        ObjectMapper mapper = new ObjectMapper();
-
-        try {
-            System.err.println(">>>> 1target: " + mapper.writeValueAsString(target));
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
         }
 
         updatePrettyPrintedFields(target);
@@ -996,12 +977,19 @@ public class StatusMerger {
         String formattedByteEstimate = FormatUtils
             .formatHoursMinutesSeconds(Math.abs(msBytes), TimeUnit.MILLISECONDS, false);
 
-        if (msCount >= properties.getTimeToOverflowGraphThreshold() * 60000) {
-            formattedCountEstimate = "> " + formattedCountEstimate;
-        }
-        if (msBytes >= properties.getTimeToOverflowGraphThreshold() * 60000) {
-            formattedByteEstimate = "> " + formattedByteEstimate;
-        }
+        System.err.println(">>>> formattedCountEstimate: " + formattedCountEstimate);
+        System.err.println(">>>> formattedByteEstimate:  " + formattedByteEstimate);
+
+//        if (msCount >= properties.getTimeToOverflowGraphThreshold() * 60000) {
+//            formattedCountEstimate = "> " + formattedCountEstimate;
+//        }
+//        if (msBytes >= properties.getTimeToOverflowGraphThreshold() * 60000) {
+//            formattedByteEstimate = "> " + formattedByteEstimate;
+//        }
+
+        System.err.println(">>>> formattedCountEstimate: " + formattedCountEstimate);
+        System.err.println(">>>> formattedByteEstimate:  " + formattedByteEstimate);
+
         return formattedCountEstimate + " / " + formattedByteEstimate;
     }
 }
