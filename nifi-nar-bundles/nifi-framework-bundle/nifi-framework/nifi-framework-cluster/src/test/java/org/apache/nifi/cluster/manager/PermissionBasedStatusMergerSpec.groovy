@@ -19,6 +19,8 @@ package org.apache.nifi.cluster.manager
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector
+import org.apache.nifi.properties.StandardNiFiProperties
+import org.apache.nifi.util.NiFiProperties
 import org.apache.nifi.web.api.dto.status.ConnectionStatusDTO
 import org.apache.nifi.web.api.dto.status.ConnectionStatusSnapshotDTO
 import org.apache.nifi.web.api.dto.status.PortStatusDTO
@@ -64,8 +66,18 @@ class PermissionBasedStatusMergerSpec extends Specification {
                 new ConnectionStatusDTO(groupId: 'hidden', id: 'hidden', name: 'hidden', sourceId: 'hidden', sourceName: 'hidden', destinationId: 'hidden', destinationName: 'hidden')
     }
 
+    NiFiProperties mockProperties(Map<String, String> defaults = [:]) {
+        def testProps = new StandardNiFiProperties(new Properties([
+                (NiFiProperties.TIME_TO_OVERFLOW_GRAPH_THRESHOLD): 480,
+                (NiFiProperties.TIME_TO_OVERFLOW_WINDOW_SIZE): 15,
+        ] + defaults))
+
+        testProps
+    }
+
     def "Merge ConnectionStatusSnapshotDTO"() {
         given:
+        StatusMerger.setProperties(mockProperties())
         def mapper = new ObjectMapper();
         mapper.setDefaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS));
         mapper.setAnnotationIntrospector(new JaxbAnnotationIntrospector(mapper.getTypeFactory()));

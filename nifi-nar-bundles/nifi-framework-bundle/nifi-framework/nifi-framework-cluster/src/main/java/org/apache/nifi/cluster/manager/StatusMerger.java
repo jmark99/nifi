@@ -977,18 +977,12 @@ public class StatusMerger {
         String formattedByteEstimate = FormatUtils
             .formatHoursMinutesSeconds(Math.abs(msBytes), TimeUnit.MILLISECONDS, false);
 
-        System.err.println(">>>> formattedCountEstimate: " + formattedCountEstimate);
-        System.err.println(">>>> formattedByteEstimate:  " + formattedByteEstimate);
-
-//        if (msCount >= properties.getTimeToOverflowGraphThreshold() * 60000) {
-//            formattedCountEstimate = "> " + formattedCountEstimate;
-//        }
-//        if (msBytes >= properties.getTimeToOverflowGraphThreshold() * 60000) {
-//            formattedByteEstimate = "> " + formattedByteEstimate;
-//        }
-
-        System.err.println(">>>> formattedCountEstimate: " + formattedCountEstimate);
-        System.err.println(">>>> formattedByteEstimate:  " + formattedByteEstimate);
+        if (msCount >= properties.getTimeToOverflowGraphThreshold() * 60000) {
+            formattedCountEstimate = "> " + formattedCountEstimate;
+        }
+        if (msBytes >= properties.getTimeToOverflowGraphThreshold() * 60000) {
+            formattedByteEstimate = "> " + formattedByteEstimate;
+        }
 
         return formattedCountEstimate + " / " + formattedByteEstimate;
     }
