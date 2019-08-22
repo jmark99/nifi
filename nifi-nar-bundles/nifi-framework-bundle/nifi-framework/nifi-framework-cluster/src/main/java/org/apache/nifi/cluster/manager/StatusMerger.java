@@ -972,18 +972,31 @@ public class StatusMerger {
     // Format the flowfile count and byte size data for the Time to Overflow estimation.
     public static String prettyPrintOverflowEstimate(final Long msCount, final Long msBytes) {
 
-        String formattedCountEstimate = FormatUtils
+        String formattedCountEstimate;
+        String formattedByteEstimate;
+        final String DASHES = " ------ ";
+        final int threshold = properties.getTimeToOverflowGraphThreshold() * 60000;
+
+        // before any values are collected, i.e., the first couple of minutes after nifi start,
+        // present dashes to indicate no values have been calculated as or yet.
+        if (msCount + msBytes == 0) {
+            formattedCountEstimate = DASHES;
+            formattedByteEstimate  = DASHES;
+            return formattedCountEstimate + " / " + formattedByteEstimate;
+        }
+
+        formattedCountEstimate = FormatUtils
             .formatHoursMinutesSeconds(Math.abs(msCount), TimeUnit.MILLISECONDS, false);
-        String formattedByteEstimate = FormatUtils
+        formattedByteEstimate = FormatUtils
             .formatHoursMinutesSeconds(Math.abs(msBytes), TimeUnit.MILLISECONDS, false);
 
-        if (msCount >= properties.getTimeToOverflowGraphThreshold() * 60000) {
-            formattedCountEstimate = "> " + formattedCountEstimate;
+        // if estimate is greater than user supplied threshold indicate it with greater than sign
+        if (msCount >= threshold) {
+            formattedCountEstimate = " > " + formattedCountEstimate;
         }
-        if (msBytes >= properties.getTimeToOverflowGraphThreshold() * 60000) {
-            formattedByteEstimate = "> " + formattedByteEstimate;
+        if (msBytes >= threshold) {
+            formattedByteEstimate = " > " + formattedByteEstimate;
         }
-
         return formattedCountEstimate + " / " + formattedByteEstimate;
     }
 }
