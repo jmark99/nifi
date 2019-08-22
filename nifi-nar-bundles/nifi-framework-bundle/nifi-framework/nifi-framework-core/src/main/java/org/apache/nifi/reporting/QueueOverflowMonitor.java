@@ -57,7 +57,7 @@ final class QueueOverflowMonitor {
         .getAggregateSnapshots();
 
     int numberOfSnapshots = snapshots.size();
-    logger.info(">>>> number of snapshots retrieved: " + numberOfSnapshots);
+    logger.debug(">>>> number of snapshots retrieved: " + numberOfSnapshots);
 
     // If less than 2 snapshots cannot create an estimate.
     if (numberOfSnapshots < 2) {
@@ -96,12 +96,12 @@ final class QueueOverflowMonitor {
   }
 
   private static void logSnapshots(List<StatusSnapshotDTO> snapshots) {
-    logger.info(">>>> Retrieved Snapshots:");
+    logger.debug(">>>> Retrieved Snapshots:");
     int filter = 0;
     for (StatusSnapshotDTO dto : snapshots) {
       Map<String,Long> statusMetrics = dto.getStatusMetrics();
       if (filter == 0 || filter == snapshots.size()-1) {
-        logger.info(">>>> date: " + dto.getTimestamp().toString() + "\t ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
+        logger.debug(">>>> date: " + dto.getTimestamp().toString() + "\t ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
       }
       filter++;
     }
@@ -125,8 +125,8 @@ final class QueueOverflowMonitor {
   // x represents time that current_val will reach overflow. Solve for x.
   // Slope = rise/run -> (current_val - prev_val) / time_delta (in minutes)
   static long getTimeToOverflow(Long max, long current, long prev, long delta) {
-    logger.info(">>>> current / prev / delta / max");
-    logger.info(">>>> " + current + " / " + prev + " / " + delta + " / " + max);
+    logger.debug(">>>> current / prev / delta / max");
+    logger.debug(">>>> " + current + " / " + prev + " / " + delta + " / " + max);
 
     // if 'max' has been met or exceeded then set graph to 0.
     // No need for further calculation
