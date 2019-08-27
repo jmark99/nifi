@@ -57,7 +57,7 @@ class ConnectionEntityMergerSpec extends Specification {
                  ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 500)), component: new ConnectionDTO())] ||
          new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: false, canWrite: false),
                  status: new ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 900, input: '0 (900 bytes)',
-                 output: '0 (0 bytes)', queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: 0, "timeToOverflow":"00:00:00 / 00:00:00")))
+                 output: '0 (0 bytes)', queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: 0, "timeToOverflow":" ------  /  ------ ")))
 
     }
 

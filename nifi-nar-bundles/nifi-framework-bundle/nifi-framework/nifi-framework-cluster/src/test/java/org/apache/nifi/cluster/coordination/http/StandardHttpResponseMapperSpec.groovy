@@ -156,7 +156,7 @@ class StandardHttpResponseMapperSpec extends Specification {
                 new ConnectionsEntity(connections: [new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: false, canWrite: false),
                         status: new ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 900,
                                 input: '0 (900 bytes)', output: '0 (0 bytes)', queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: 0, timeToOverflow:
-                                '00:00:00 / 00:00:00', timeToFailureBytes: 0, timeToFailureCount: 0)))] as Set)
+                                ' ------  /  ------ ', timeToFailureBytes: 0, timeToFailureCount: 0)))] as Set)
         "nifi-api/process-groups/${UUID.randomUUID()}/connections" | 'post' | [
                 new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: true, canWrite: true), status:
                         new ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 300)), component: new ConnectionDTO()),
@@ -167,7 +167,7 @@ class StandardHttpResponseMapperSpec extends Specification {
                 // expectedEntity
                 new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: false, canWrite: false),
                         status: new ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 900, input: '0 (900 bytes)',
-                                output: '0 (0 bytes)', queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: 0, timeToOverflow: '00:00:00 / 00:00:00',
+                                output: '0 (0 bytes)', queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: 0, timeToOverflow: ' ------  /  ------ ',
                                 timeToFailureBytes: 0, timeToFailureCount: 0)))
         "nifi-api/connections/${UUID.randomUUID()}"                | 'get'  | [
                 new ConnectionEntity(id: '1', permissions: new PermissionsDTO(canRead: true, canWrite: true), status:
@@ -181,7 +181,7 @@ class StandardHttpResponseMapperSpec extends Specification {
                         status: new ConnectionStatusDTO(aggregateSnapshot: new ConnectionStatusSnapshotDTO(bytesIn: 1000,
                                 input: "0 (${NumberFormat.instance.format(1000)} bytes)", output:
                                 '0 (0 bytes)', queued: '0 (0 bytes)', queuedSize: '0 bytes', queuedCount: 0,
-                                timeToOverflow: '00:00:00 / 00:00:00', timeToFailureBytes: 0, timeToFailureCount: 0)))
+                                timeToOverflow: ' ------  /  ------ ', timeToFailureBytes: 0, timeToFailureCount: 0)))
         "nifi-api/process-groups/${UUID.randomUUID()}/labels" | 'get'      | [
                 new LabelsEntity(labels: [new LabelEntity(id: '1', permissions: new PermissionsDTO(canRead: true, canWrite: true), component: new LabelDTO())] as Set),
                 new LabelsEntity(labels: [new LabelEntity(id: '1', permissions: new PermissionsDTO(canRead: false, canWrite: false))] as Set),
