@@ -20,22 +20,13 @@ import org.apache.commons.lang3.time.DateUtils
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import java.text.DateFormat
-import java.text.SimpleDateFormat
+import java.math.RoundingMode
 import java.util.concurrent.TimeUnit
 
 @Unroll
 class QueueOverflowMonitorSpec extends Specification {
 
-    // given
-    // when
-    // then
-    // where
-
     def "Test convert date difference to minutes"() {
-        given:
-        DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-
         when:
         long diffInMinutes = QueueOverflowMonitor.diffInMinutes(date1, date2)
 
@@ -57,31 +48,38 @@ class QueueOverflowMonitorSpec extends Specification {
                 DateUtils.parseDate("2019/08/22 13:15:34", "yyyy/MM/dd HH:mm:ss")
     }
 
-    // y = mx + b
-    // m = slope --> rise/run --> (current_val - prev_val) / time_delta (in minutes)
-    // y = overflow limit
-    // b = current value of bytes/count
-    // solve for x
-//    def "Compute overflow estimate"() {
-//        when:
-//        def estimate = QueueOverflowMonitor.getTimeToOverflow(max, current, prev, delta)
-//
-//        then:
-//        double slope = (current - prev) / delta
-//        long lslope = (long) slope
-//        long expected = (max  - current) / slope
-//        println("estimate: " + estimate)
-//        println("expected: " + expected)
-//        estimate == expected
-//
-//        where:
-//        max | current | prev | delta
-//        1000 | 50 | 10 | 15
-//        1000 | 1  | 1  | 15
-//        1000 | 99 | 98 | 15
-//        1000 | 538 | 536 | 1
-//        1000 | 541 | 536 | 2
-//
-//    }
+    def "Compute overflow estimate"() {
+        given:
+        double estimatedOverflow
+        double slope = (current - prev) / (double) delta
+        if (slope <= 0) {
+            estimatedOverflow = QueueOverflowMonitor.getAlertThreshold()
+        } else {
+            slope = BigDecimal.valueOf(slope).setScale(2, RoundingMode.HALF_UP).doubleValue()
+            estimatedOverflow = (max - current) / slope
+            estimatedOverflow = BigDecimal.valueOf(estimatedOverflow).setScale(4, RoundingMode
+                    .HALF_UP).doubleValue()
+            estimatedOverflow = (long) (estimatedOverflow * 60000)
+        }
+
+        when:
+        def expected = QueueOverflowMonitor.getTimeToOverflow(max, current, prev, delta)
+
+        then:
+        expected == estimatedOverflow
+
+        where:
+        max | current | prev | delta
+        1000 | 50 | 10 | 15
+        1000 | 99 | 98 | 15
+        1000 | 538 | 536 | 1
+        1000 | 541 | 536 | 2
+        1000 | 1  | 1  | 15
+        1000 | 0  | 0  | 12
+        1000 | 27  | 24  | 15
+        1000 | 24  | 27  | 15
+        1000 | 10  | 10  | 15
+        1000 | 2000  | 2000  | 15
+    }
 }
 

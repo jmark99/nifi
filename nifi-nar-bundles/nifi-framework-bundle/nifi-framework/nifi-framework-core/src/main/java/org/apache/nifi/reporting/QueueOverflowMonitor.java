@@ -10,7 +10,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either qexpress or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -20,7 +20,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -31,10 +30,10 @@ import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.util.FormatUtils;
 import org.apache.nifi.web.api.dto.status.StatusSnapshotDTO;
 
-// We will go back 'windowSize' minutes and obtain the information for the connection at that
+// Go back 'windowSize' minutes and obtain the information for the connection at that
 // time and compare the delta's between the byte and file count values. Using that information
-// we will model a line using the standard y=mx+b formula to determine when this connection
-// would overflow the queue thresholds if the data continued coming in at this rate.
+// model a line using the standard y=mx+b formula to determine when this connection
+// would overflow the queue thresholds if the data continued coming in at that rate.
 final class QueueOverflowMonitor {
 
   private static final Logger logger = LoggerFactory.getLogger(QueueOverflowMonitor.class);
@@ -57,14 +56,11 @@ final class QueueOverflowMonitor {
         .getAggregateSnapshots();
 
     int numberOfSnapshots = snapshots.size();
-    logger.debug(">>>> number of snapshots retrieved: " + numberOfSnapshots);
 
     // If less than 2 snapshots cannot create an estimate.
     if (numberOfSnapshots < 2) {
       return;
     }
-
-    logSnapshots(snapshots);
 
     // get threshold information
     long maxFiles = conn.getFlowFileQueue().getBackPressureObjectThreshold();
@@ -95,38 +91,25 @@ final class QueueOverflowMonitor {
     computeTimeToFailureFiles(maxFiles, currentCount, prevCount, timeDeltaInMinutes);
   }
 
-  private static void logSnapshots(List<StatusSnapshotDTO> snapshots) {
-    logger.debug(">>>> Retrieved Snapshots:");
-    int filter = 0;
-    for (StatusSnapshotDTO dto : snapshots) {
-      Map<String,Long> statusMetrics = dto.getStatusMetrics();
-      if (filter == 0 || filter == snapshots.size()-1) {
-        logger.debug(">>>> date: " + dto.getTimestamp().toString() + "\t ==> " + statusMetrics.get("queuedCount") + " / " + statusMetrics.get("queuedBytes"));
-      }
-      filter++;
-    }
-  }
-
-  public static long diffInMinutes(Date date1, Date date2) {
+  // Given two date objects determine diff in minutes.
+  static long diffInMinutes(Date date1, Date date2) {
     long diffInMillis = Math.abs(date2.getTime() - date1.getTime());
     return TimeUnit.MINUTES.convert(diffInMillis, TimeUnit.MILLISECONDS);
   }
 
-  static void computeTimeToFailureBytes(long limit, long current, long prev, long delta) {
+  // compute time until FlowFile data size reaches overflow of declared queue limit
+  private static void computeTimeToFailureBytes(long limit, long current, long prev, long delta) {
     timeToByteOverflow = getTimeToOverflow(limit, current, prev, delta);
   }
 
-  static void computeTimeToFailureFiles(long threshold, long current, long prev, long delta) {
+  // compute time until the FlowFile count reaches the declared FlowFile count limit.
+  private static void computeTimeToFailureFiles(long threshold, long current, long prev, long delta) {
     timeToCountOverflow = getTimeToOverflow(threshold, current, prev, delta);
   }
 
-  // Estimate using y = mx + b
-  // max = slope * x + current_val_of_bytes_or_count
-  // x represents time that current_val will reach overflow. Solve for x.
-  // Slope = rise/run -> (current_val - prev_val) / time_delta (in minutes)
   static long getTimeToOverflow(Long max, long current, long prev, long delta) {
-    logger.debug(">>>> current / prev / delta / max");
-    logger.debug(">>>> " + current + " / " + prev + " / " + delta + " / " + max);
+    logger.trace(">>>> current / prev / delta / max");
+    logger.trace(">>>> " + current + " / " + prev + " / " + delta + " / " + max);
 
     // if 'max' has been met or exceeded then set graph to 0.
     // No need for further calculation
@@ -139,11 +122,11 @@ final class QueueOverflowMonitor {
       return alertThreshold;
     }
 
-    // Determine slope, making sure not to divide by 0
+    // Determine slope
     double slope = (current - prev) / (double) delta;
     slope = BigDecimal.valueOf(slope).setScale(2, RoundingMode.HALF_UP).doubleValue();
 
-    // if slope is 0 or less then there is no worry of overflow happening. nifi.properties
+    // if slope is 0 or less then there is no worry of overflow happening. "nifi.properties"
     // contains a setting that allows the user to select a threshold value at which time they
     // would like to see graph values begin tracking estimates.
     if (slope <= 0) {
@@ -155,11 +138,7 @@ final class QueueOverflowMonitor {
     estimatedOverflow = BigDecimal.valueOf(estimatedOverflow).setScale(4, RoundingMode.HALF_UP)
         .doubleValue();
 
-    logger
-        .info(">>>> estimatedOverflow -> {} min(s) = ({} - {}) / {}", estimatedOverflow, max,
-            current, slope);
-
-    // Return estimate as milliseconds
+    // Return as milliseconds
     return (long) (estimatedOverflow * 60000);
   }
 
@@ -170,4 +149,6 @@ final class QueueOverflowMonitor {
   static long getTimeToCountOverflow() {
     return Math.min(timeToCountOverflow, alertThreshold);
   }
+
+  static long getAlertThreshold() { return alertThreshold; }
 }
