@@ -36,9 +36,10 @@
                 'nf.PolicyManagement',
                 'nf.Processor',
                 'nf.ProcessGroup',
-                'nf.ProcessGroupConfiguration'],
-            function ($, Slick, d3, nfClient, nfDialog, nfStorage, nfCommon, nfCanvasUtils, nfNgBridge, nfErrorHandler, nfFilteredDialogCommon, nfShell, nfComponentState, nfComponentVersion, nfPolicyManagement, nfProcessor, nfProcessGroup, nfProcessGroupConfiguration) {
-                return (nf.ParameterContexts = factory($, Slick, d3, nfClient, nfDialog, nfStorage, nfCommon, nfCanvasUtils, nfNgBridge, nfErrorHandler, nfFilteredDialogCommon, nfShell, nfComponentState, nfComponentVersion, nfPolicyManagement, nfProcessor, nfProcessGroup, nfProcessGroupConfiguration));
+                'nf.ProcessGroupConfiguration',
+                'lodash-core'],
+            function ($, Slick, d3, nfClient, nfDialog, nfStorage, nfCommon, nfCanvasUtils, nfNgBridge, nfErrorHandler, nfFilteredDialogCommon, nfShell, nfComponentState, nfComponentVersion, nfPolicyManagement, nfProcessor, nfProcessGroup, nfProcessGroupConfiguration, _) {
+                return (nf.ParameterContexts = factory($, Slick, d3, nfClient, nfDialog, nfStorage, nfCommon, nfCanvasUtils, nfNgBridge, nfErrorHandler, nfFilteredDialogCommon, nfShell, nfComponentState, nfComponentVersion, nfPolicyManagement, nfProcessor, nfProcessGroup, nfProcessGroupConfiguration, _));
             });
     } else if (typeof exports === 'object' && typeof module === 'object') {
         module.exports = (nf.ParameterContexts =
@@ -59,7 +60,8 @@
                 require('nf.PolicyManagement'),
                 require('nf.Processor'),
                 require('nf.ProcessGroup'),
-                require('nf.ProcessGroupConfiguration')));
+                require('nf.ProcessGroupConfiguration'),
+                require('lodash-core')));
     } else {
         nf.ParameterContexts = factory(root.$,
             root.Slick,
@@ -78,9 +80,10 @@
             root.nf.PolicyManagement,
             root.nf.Processor,
             root.nf.ProcessGroup,
-            root.nf.ProcessGroupConfiguration);
+            root.nf.ProcessGroupConfiguration,
+            root._);
     }
-}(this, function ($, Slick, d3, nfClient, nfDialog, nfStorage, nfCommon, nfCanvasUtils, nfNgBridge, nfErrorHandler, nfFilteredDialogCommon, nfShell, nfComponentState, nfComponentVersion, nfPolicyManagement, nfProcessor, nfProcessGroup, nfProcessGroupConfiguration) {
+}(this, function ($, Slick, d3, nfClient, nfDialog, nfStorage, nfCommon, nfCanvasUtils, nfNgBridge, nfErrorHandler, nfFilteredDialogCommon, nfShell, nfComponentState, nfComponentVersion, nfPolicyManagement, nfProcessor, nfProcessGroup, nfProcessGroupConfiguration, _) {
     'use strict';
 
     var config = {
@@ -139,8 +142,10 @@
         // defines a function for sorting
         var comparer = function (a, b) {
             if (a.permissions.canRead && b.permissions.canRead) {
-                var aString = nfCommon.isDefinedAndNotNull(a.component[sortDetails.columnId]) ? a.component[sortDetails.columnId] : '';
-                var bString = nfCommon.isDefinedAndNotNull(b.component[sortDetails.columnId]) ? b.component[sortDetails.columnId] : '';
+
+                // use _.get to try to access the piece of the object you want, but provide a default value it it is not there
+                var aString = _.get(a, 'component[' +  sortDetails.columnId + ']', '');
+                var bString = _.get(b, 'component[' +  sortDetails.columnId + ']', '');
                 return aString === bString ? 0 : aString > bString ? 1 : -1;
             } else {
                 if (!a.permissions.canRead && !b.permissions.canRead) {
@@ -170,8 +175,8 @@
         // defines a function for sorting
         var comparer = function (a, b) {
             if (sortDetails.columnId === 'name') {
-                var aString = nfCommon.isDefinedAndNotNull(a[sortDetails.columnId]) ? a[sortDetails.columnId] : '';
-                var bString = nfCommon.isDefinedAndNotNull(b[sortDetails.columnId]) ? b[sortDetails.columnId] : '';
+                var aString = _.get(a, '[' +  sortDetails.columnId + ']', '');
+                var bString = _.get(b, '[' +  sortDetails.columnId + ']', '');
                 return aString === bString ? 0 : aString > bString ? 1 : -1;
             }
         };
@@ -209,6 +214,21 @@
 
         // clean up any tooltips that may have been generated
         nfCommon.cleanUpTooltips($('#parameter-table'), 'div.fa-question-circle');
+    };
+
+    /**
+     * Resets all of the fields in the add/edit parameter dialog
+     */
+    var resetParameterDialog = function () {
+        $('#parameter-name').val('');
+        $('#parameter-value-field').val('');
+        $('#parameter-description-field').val('');
+        $('#parameter-sensitive-radio-button').prop('checked', false);
+        $('#parameter-not-sensitive-radio-button').prop('checked', false);
+        $('#parameter-name').prop('disabled', false);
+        $('#parameter-sensitive-radio-button').prop('disabled', false);
+        $('#parameter-not-sensitive-radio-button').prop('disabled', false);
+        $('#parameter-set-empty-string-field').removeClass('checkbox-checked').addClass('checkbox-unchecked');
     };
 
     /**
@@ -433,6 +453,8 @@
             handleOutstandingChanges().done(function () {
                 // close the shell
                 $('#shell-dialog').modal('hide');
+
+                nfProcessGroup.enterGroup(referencingControllerService.processGroupId);
 
                 // show the component in question
                 nfProcessGroupConfiguration.showConfiguration(referencingControllerService.processGroupId).done(function () {
@@ -752,150 +774,168 @@
         return a.component.name.localeCompare(b.component.name);
     };
 
-    var parameterKeyRegex = /^[a-zA-Z0-9-_. ]+$/;
-
     /**
      * Adds a new parameter.
      */
     var addNewParameter = function () {
-        var parameterName = $.trim($('#parameter-name').val());
+        var param = serializeParameter();
 
-        // ensure the parameter name is specified
-        if (parameterName !== '' && parameterKeyRegex.test(parameterName)) {
-            var parameterGrid = $('#parameter-table').data('gridInstance');
-            var parameterData = parameterGrid.getData();
+        var parameterGrid = $('#parameter-table').data('gridInstance');
+        var parameterData = parameterGrid.getData();
 
-            // ensure the parameter name is unique
-            var matchingParameter = null;
-            $.each(parameterData.getItems(), function (_, item) {
-                if (parameterName === item.name) {
-                    matchingParameter = item;
-                    return false;
-                }
+        var isValid = validateParameter(param, parameterData.getItems());
+
+        if (isValid) {
+
+            var parameter = _.extend({}, param, {
+                id: _.defaultTo(param.id, parameterCount),
+                hidden: false,
+                type: 'Parameter',
+                previousValue: null,
+                previousDescription: null,
+                isEditable: true,
+                isModified: true,
+                hasValueChanged: false,
+                isNew: true,
             });
 
-            var isSensitive = $('#parameter-dialog').find('input[name="sensitive"]:checked').val() === "sensitive" ? true : false;
-            var isChecked = $('#parameter-set-empty-string-field').hasClass('checkbox-checked');
-
-            if (matchingParameter === null) {
-                var parameter = {
-                    id: parameterCount,
-                    hidden: false,
-                    type: 'Parameter',
-                    sensitive: isSensitive,
-                    name: parameterName,
-                    description: $('#parameter-description-field').val(),
-                    previousValue: null,
-                    previousDescription: null,
-                    isEditable: true,
-                    isEmptyStringSet: isChecked,
-                    isModified: true,
-                    hasValueChanged: false,
-                    isNew: true
-                };
-
-                var value = $('#parameter-value-field').val();
-                if (!nfCommon.isBlank(value)) {
-                    parameter.value = value;
-                } else {
-                    if (isChecked) {
-                        parameter.value = '';
-                    } else {
-                        parameter.value = null;
-                    }
-                }
-
+            if (_.isNil(param.id)) {
                 // add a row for the new parameter
                 parameterData.addItem(parameter);
-
-                // sort the data
-                parameterData.reSort();
-
-                // select the new parameter row
-                var row = parameterData.getRowById(parameterCount);
-                parameterGrid.setActiveCell(row, parameterGrid.getColumnIndex('value'));
-                parameterCount++;
             } else {
-                // if this row is currently hidden, make sure the sensitivity is equivalent before we allow recreate
-                if (matchingParameter.hidden === true && matchingParameter.sensitive !== isSensitive) {
-                    nfDialog.showOkDialog({
-                        headerText: 'Parameter Exists',
-                        dialogContent: 'A parameter with this name has been marked for deletion. Please apply this change to delete this parameter from the parameter context before recreating it with a different sensitivity.'
-                    });
-                } else if (matchingParameter.hidden === true && matchingParameter.sensitive === isSensitive) {
-                    var parameter = $.extend(matchingParameter, {
-                        hidden: false,
-                        sensitive: isSensitive,
-                        previousValue: null,
-                        description: $('#parameter-description-field').val(),
-                        previousDescription: null,
-                        isEditable: true,
-                        isEmptyStringSet: isChecked,
-                        isModified: true,
-                        hasValueChanged: false,
-                        isNew: true
-                    });
-
-                    var value = $('#parameter-value-field').val();
-                    if (!nfCommon.isBlank(value)) {
-                        parameter.value = value;
-                    } else {
-                        if (isChecked) {
-                            parameter.value = '';
-                        } else {
-                            parameter.value = null;
-                        }
-                    }
-
-                    parameterData.updateItem(matchingParameter.id, parameter);
-
-                    // sort the data
-                    parameterData.reSort();
-
-                    // select the new parameter row
-                    var row = parameterData.getRowById(matchingParameter.id);
-                    parameterGrid.setActiveCell(row, parameterGrid.getColumnIndex('value'));
-                    parameterCount++;
-                } else {
-                    nfDialog.showOkDialog({
-                        headerText: 'Parameter Exists',
-                        dialogContent: 'A parameter with this name already exists.'
-                    });
-
-                    // select the existing properties row
-                    var matchingRow = parameterData.getRowById(matchingParameter.id);
-                    parameterGrid.setSelectedRows([matchingRow]);
-                    parameterGrid.scrollRowIntoView(matchingRow);
-                }
+                parameterData.updateItem(param.id, parameter);
             }
+
+            // sort the data
+            parameterData.reSort();
+
+            // select the new parameter row
+            var row = parameterData.getRowById(parameterCount);
+            parameterGrid.setActiveCell(row, parameterGrid.getColumnIndex('value'));
+            parameterCount++;
 
             // close the new parameter dialog
             $('#parameter-dialog').modal('hide');
 
-            // update the buttons to possibly trigger the disabled state
-            $('#parameter-context-dialog').modal('refreshButtons');
+        }
 
-        } else if (!parameterKeyRegex.test(parameterName)) {
-            nfDialog.showOkDialog({
-                headerText: 'Configuration Error',
-                dialogContent: 'This parameter appears to have an invalid character or characters. Only alpha-numeric characters (a-z, A-Z, 0-9), hyphens (-), underscores (_), periods (.), and spaces ( ) are accepted.'
-            });
-        } else {
+        // update the buttons to possibly trigger the disabled state
+        $('#parameter-context-dialog').modal('refreshButtons');
+    };
+
+    /**
+     * Builds a parameter object from the user-entered parameter inputs
+     *
+     * @param originalParameter Optional parameter to compare value against to determine if it has changed
+     * @return {{isEmptyStringSet: *, name: *, description: *, sensitive: *, value: *, hasValueChanged: *, hasDescriptionChanged: *}}
+     */
+    var serializeParameter = function (originalParameter) {
+        var name = $.trim($('#parameter-name').val());
+        var value = $('#parameter-value-field').val();
+        var isEmptyStringSet = $('#parameter-set-empty-string-field').hasClass('checkbox-checked');
+        var description = $('#parameter-description-field').val();
+        var isSensitive = $('#parameter-dialog').find('input[name="sensitive"]:checked').val() === 'sensitive' ? true : false;
+
+        var validateValue = function () {
+            // updates to a parameter cannot have a null value
+            if (!this.isNew) {
+                if (_.isEmpty(this.value) && !this.isEmptyStringSet) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        var parameter = {
+            name: name,
+            value: null,
+            description: null,
+            sensitive: isSensitive,
+            isEmptyStringSet: isEmptyStringSet,
+            previousValue: null,
+            isNew: true
+        };
+
+        var serializedValue = serializeValue($('#parameter-value-field'), _.isNil(originalParameter) ? parameter : originalParameter, isEmptyStringSet);
+
+        return {
+            name: name,
+            value: serializedValue.value,
+            description: description,
+            sensitive: isSensitive,
+            isEmptyStringSet: isEmptyStringSet,
+            hasValueChanged: serializedValue.hasChanged,
+            hasDescriptionChanged: description !== _.get(originalParameter, 'description', ''),
+            isValueValid: validateValue
+        }
+    };
+
+    /**
+     * Checks the validity of a parameter
+     * @param parameter Parameter to validate
+     * @param existingParameters Existing parameters to verify there are no duplicates
+     * @param editMode boolean indicating if validation should account for editing an existing parameter
+     * @return {boolean}
+     */
+    var validateParameter = function (parameter, existingParameters, editMode) {
+        if (parameter.name === '') {
             nfDialog.showOkDialog({
                 headerText: 'Configuration Error',
                 dialogContent: 'The name of the parameter must be specified.'
             });
+            return false;
+        }
+
+        // make sure the parameter name does not use any unsupported characters
+        var parameterNameRegex = /^[a-zA-Z0-9-_. ]+$/;
+        if (!parameterNameRegex.test(parameter.name)) {
+            nfDialog.showOkDialog({
+                headerText: 'Configuration Error',
+                dialogContent: 'The name of the parameter appears to have an invalid character or characters. Only alpha-numeric characters (a-z, A-Z, 0-9), hyphens (-), underscores (_), periods (.), and spaces ( ) are accepted.'
+            });
+            return false;
+        }
+
+        // validate the parameter is not a duplicate
+        var matchingParameter = _.find(existingParameters, { name: parameter.name });
+
+        // Valid if no duplicate is found or it is edit mode and a matching parameter was found
+        if (_.isNil(matchingParameter) || (editMode === true && !_.isNil(matchingParameter))) {
+            return true;
+        } else {
+            var matchingParamIsHidden = _.get(matchingParameter, 'hidden', false);
+            if (matchingParamIsHidden && matchingParameter.sensitive !== parameter.sensitive) {
+                nfDialog.showOkDialog({
+                    headerText: 'Parameter Exists',
+                    dialogContent: 'A parameter with this name has been marked for deletion. Please apply this change to delete this parameter from the parameter context before recreating it with a different sensitivity.'
+                });
+            } else if (matchingParamIsHidden && matchingParameter.sensitive === parameter.sensitive) {
+                // set the id of the parameter that was found. It could be used to update it.
+                parameter.id = matchingParameter.id;
+                return true;
+            } else {
+                nfDialog.showOkDialog({
+                    headerText: 'Parameter Exists',
+                    dialogContent: 'A parameter with this name already exists.'
+                });
+            }
+            return false;
         }
     };
 
     var serializeValue = function (input, parameter, isChecked) {
         var serializedValue;
-        var hasChanged = true;
 
         var value = input.val();
+        if (!isChecked && _.isEmpty(value)) {
+            value = null;
+        }
+
+        var hasChanged = parameter.value !== value;
+
         if (!nfCommon.isBlank(value)) {
             // if the value is sensitive and the user has not made a change
-            if (parameter.sensitive === true && input.hasClass('sensitive') && parameter.isNew === false) {
+            if (!_.isEmpty(parameter) && parameter.sensitive === true && input.hasClass('sensitive') && parameter.isNew === false) {
                 serializedValue = parameter.previousValue;
                 hasChanged = false;
             } else {
@@ -918,76 +958,54 @@
 
     /**
      * Update a parameter.
+     *
+     * @param originalParameter that is being edited
      */
-    var updateParameter = function () {
-        var parameterName = $('#parameter-name').val();
+    var updateParameter = function (originalParameter) {
+        var serializedParam = serializeParameter(originalParameter);
+        var parameterGrid = $('#parameter-table').data('gridInstance');
+        var parameterData = parameterGrid.getData();
 
-        // ensure the parameter name is specified
-        if (parameterName !== '') {
-            var parameterGrid = $('#parameter-table').data('gridInstance');
-            var parameterData = parameterGrid.getData();
+        var isValid = validateParameter(serializedParam, parameterData.getItems(), true);
 
-            // ensure the parameter name is unique
-            var matchingParameter = null;
-            $.each(parameterData.getItems(), function (_, item) {
-                if (parameterName === item.name) {
-                    matchingParameter = item;
-                    return false;
-                }
+        if (isValid) {
+            var parameter = _.extend({}, originalParameter, {
+                id: originalParameter.id,
+                hidden: false,
+                type: 'Parameter',
+                sensitive: originalParameter.sensitive,
+                name: originalParameter.name,
+                description: serializedParam.description,
+                referencingComponents: originalParameter.referencingComponents,
+                previousValue: originalParameter.value,
+                previousDescription: originalParameter.description,
+                isEditable: originalParameter.isEditable,
+                isEmptyStringSet: serializedParam.isEmptyStringSet,
+                isNew: originalParameter.isNew,
+                hasValueChanged: serializedParam.hasValueChanged,
+                hasDescriptionChanged: serializedParam.hasDescriptionChanged,
+                value: serializedParam.value,
+                isModified: serializedParam.hasValueChanged || serializedParam.hasDescriptionChanged
             });
 
-            if (matchingParameter !== null) {
-                var isChecked = $('#parameter-set-empty-string-field').hasClass('checkbox-checked');
+            // update row for the parameter
+            parameterData.updateItem(originalParameter.id, parameter);
 
-                var parameter = {
-                    id: matchingParameter.id,
-                    hidden: false,
-                    type: 'Parameter',
-                    sensitive: matchingParameter.sensitive,
-                    name: parameterName,
-                    description: $('#parameter-description-field').val(),
-                    referencingComponents: matchingParameter.referencingComponents,
-                    previousValue: matchingParameter.value,
-                    previousDescription: matchingParameter.description,
-                    isEditable: matchingParameter.isEditable,
-                    isEmptyStringSet: isChecked,
-                    isNew: matchingParameter.isNew
-                };
+            // sort the data
+            parameterData.reSort();
 
-                var input = $('#parameter-value-field');
-                var serializedValue = serializeValue(input, parameter, isChecked);
-                parameter.value = serializedValue.value;
-                parameter.isModified = serializedValue.hasChanged || parameter.description !== parameter.previousDescription;
-                parameter.hasValueChanged = serializedValue.hasChanged;
-
-                // update row for the parameter
-                parameterData.updateItem(matchingParameter.id, parameter);
-
-                // sort the data
-                parameterData.reSort();
-
-                // select the parameter row
-                var row = parameterData.getRowById(matchingParameter.id);
-                parameterGrid.setActiveCell(row, parameterGrid.getColumnIndex('value'));
-            } else {
-                nfDialog.showOkDialog({
-                    headerText: 'Parameter Does Not Exists',
-                    dialogContent: 'A parameter with this name does not exist.'
-                });
-            }
+            // select the parameter row
+            var row = parameterData.getRowById(originalParameter.id);
+            parameterGrid.setActiveCell(row, parameterGrid.getColumnIndex('value'));
 
             // close the new parameter dialog
             $('#parameter-dialog').modal('hide');
-
-            // update the buttons to possibly trigger the disabled state
-            $('#parameter-context-dialog').modal('refreshButtons');
-        } else {
-            nfDialog.showOkDialog({
-                headerText: 'Create Parameter Error',
-                dialogContent: 'The name of the parameter must be specified.'
-            });
         }
+
+        // update the buttons to possibly trigger the disabled state
+        $('#parameter-context-dialog').modal('refreshButtons');
     };
+
 
     /**
      * Updates parameter contexts by issuing an update request and polling until it's completion.
@@ -1173,7 +1191,7 @@
                                     component: updateRequestEntity.request.parameterContext
                                 });
 
-                                var item = parameterContextData.getItem(parameterContextEntity.id);
+                                var item = parameterContextData.getItemById(parameterContextEntity.id);
                                 if (nfCommon.isDefinedAndNotNull(item)) {
                                     parameterContextData.updateItem(parameterContextEntity.id, parameterContextEntity);
                                 }
@@ -1425,11 +1443,11 @@
         };
 
         var valueFormatter = function (row, cell, value, columnDef, dataContext) {
-            if (dataContext.sensitive === true) {
+            if (dataContext.sensitive === true && !_.isNil(value)) {
                 return '<span class="table-cell sensitive">Sensitive value set</span>';
             } else if (value === '') {
                 return '<span class="table-cell blank">Empty string set</span>';
-            } else if (nfCommon.isNull(value)) {
+            } else if (_.isNil(value)) {
                 return '<span class="unset">No value set</span>';
             } else {
                 return nfCommon.escapeHtml(value);
@@ -1514,10 +1532,16 @@
 
                 // determine the desired action
                 if (target.hasClass('delete-parameter')) {
-                    // mark the property in question for removal and refresh the table
-                    parameterData.updateItem(parameter.id, $.extend(parameter, {
-                        hidden: true
-                    }));
+                    if (!parameter.isNew) {
+                        // mark the parameter in question for removal and refresh the table
+                        parameterData.updateItem(parameter.id, $.extend(parameter, {
+                            hidden: true
+                        }));
+                    } else {
+                        // remove the parameter from the table
+                        parameterData.deleteItem(parameter.id);
+                    }
+
 
                     // reset the selection if necessary
                     var selectedRows = parametersGrid.getSelectedRows();
@@ -1580,7 +1604,9 @@
                         if (parameter.sensitive) {
                             $('#parameter-sensitive-radio-button').prop('checked', true);
                             $('#parameter-not-sensitive-radio-button').prop('checked', false);
-                            $('#parameter-value-field').addClass('sensitive').val(nfCommon.config.sensitiveText).select();
+                            if (!_.isNil(parameter.value)) {
+                                $('#parameter-value-field').addClass('sensitive').val(nfCommon.config.sensitiveText).select();
+                            }
                         } else {
                             $('#parameter-sensitive-radio-button').prop('checked', false);
                             $('#parameter-not-sensitive-radio-button').prop('checked', true);
@@ -1604,19 +1630,16 @@
                                 text: '#ffffff'
                             },
                             disabled: function () {
-                                var input = $('#parameter-value-field');
-                                var isChecked = $('#parameter-set-empty-string-field').hasClass('checkbox-checked');
-                                var serializedValue = serializeValue(input, parameter, isChecked);
-
-                                var description = $('#parameter-description-field').val();
-
-                                var hasChanged = serializedValue.hasChanged || description !== parameter.previousDescription;
-
-                                return !hasChanged;
+                                var param = serializeParameter(parameter);
+                                if (param.hasValueChanged) {
+                                    return !param.isValueValid();
+                                } else {
+                                    return !param.hasDescriptionChanged;
+                                }
                             },
                             handler: {
                                 click: function () {
-                                    updateParameter();
+                                    updateParameter(parameter);
                                 }
                             }
                         }, {
@@ -1773,15 +1796,7 @@
 
         $('#add-parameter').on('click', function () {
             var closeHandler = function () {
-                $('#parameter-name').val('');
-                $('#parameter-value-field').val('');
-                $('#parameter-description-field').val('');
-                $('#parameter-sensitive-radio-button').prop('checked', false);
-                $('#parameter-not-sensitive-radio-button').prop('checked', false);
-                $('#parameter-name').prop('disabled', false);
-                $('#parameter-sensitive-radio-button').prop('disabled', false);
-                $('#parameter-not-sensitive-radio-button').prop('disabled', false);
-                $('#parameter-set-empty-string-field').removeClass('checkbox-checked').addClass('checkbox-unchecked');
+                resetParameterDialog();
             };
 
             var openHandler = function () {
@@ -1802,7 +1817,8 @@
                         text: '#ffffff'
                     },
                     disabled: function () {
-                        if ($('#parameter-name').val() !== '') {
+                        var param = serializeParameter();
+                        if (param.name !== '') {
                             return false;
                         }
                         return true;
@@ -1824,8 +1840,8 @@
                             $(this).modal('hide');
                         }
                     }
-                }]).modal('show');
-            $('#parameter-dialog').modal('show');
+                }])
+                .modal('show');
         });
 
         $('#parameter-context-name').on('keyup', function (evt) {
@@ -1854,6 +1870,56 @@
         });
 
         initParameterTable();
+    };
+
+    /**
+     * Opens the Add Parameter Dialog.
+     * @param {Object} callbacks object with callbacks for handling the cancel and apply button functionality:
+     *
+     * @example
+     * openAddParameterDialog({
+     *     onApply: function () {
+     *         // handle the apply button being clicked
+     *     },
+     *     onCancel: function() {
+     *         // handle the cancel button being clicked
+     *     }
+     * });
+     */
+    var openAddParameterDialog = function (callbacks) {
+        $('#parameter-dialog')
+            .modal('setHeaderText', 'Add Parameter')
+            .modal('setButtonModel', [{
+                buttonText: 'Apply',
+                color: {
+                    base: '#728E9B',
+                    hover: '#004849',
+                    text: '#ffffff'
+                },
+                disabled: function () {
+                    var param = serializeParameter();
+                    var isUpdatingParameterContext = $('#parameter-context-updating-status').hasClass('show-status');
+
+                    if (isUpdatingParameterContext || _.isEmpty(param.name)) {
+                        return true;
+                    }
+                    return false;
+                },
+                handler: {
+                    click: callbacks.onApply
+                }
+            }, {
+                buttonText: 'Cancel',
+                color: {
+                    base: '#E3E8EB',
+                    hover: '#C7D2D7',
+                    text: '#004849'
+                },
+                handler: {
+                    click: callbacks.onCancel
+                }
+            }])
+            .modal('show');
     };
 
     /**
@@ -2298,6 +2364,180 @@
                 var parameterContextData = parameterContextGrid.getData();
                 parameterContextData.deleteItem(parameterContextEntity.id);
             }).fail(nfErrorHandler.handleAjaxError);
+        },
+
+        /**
+         * Converts a property in to a parameter and adds the parameter to the current parameter context.
+         * @param property              property to convert
+         * @param propertyDescriptor    property descriptor for the property bering converted
+         * @param parameterContextId    id of the current parameter context
+         * @return Promise              A Promise that resolves with the added parameter
+         */
+        convertPropertyToParameter: function (property, propertyDescriptor, parameterContextId) {
+            return $.Deferred(function (deferred) {
+
+                if (_.isNil(parameterContextId)) {
+                    nfDialog.showOkDialog({
+                        headerText: 'Unable to Convert Property',
+                        dialogContent: 'There is no parameter context set for the current process group.'
+                    });
+
+                    deferred.reject();
+                }
+
+                var getContext = $.ajax({
+                    type: 'GET',
+                    url: config.urls.parameterContexts + '/' + encodeURIComponent(parameterContextId),
+                    dataType: 'json'
+                });
+
+                // get the parameter context, show the dialog
+                getContext
+                    .done(function (parameterContextEntity) {
+                        var showUpdateStatus = function (isOn) {
+                            if (isOn) {
+                                // show the status message
+                                $('#parameter-context-updating-status').addClass('show-status');
+
+                                // disable the apply button
+                                $('#parameter-dialog').modal('refreshButtons');
+                            } else {
+                                $('#parameter-context-updating-status').removeClass('show-status');
+
+                                // possibly re-enable the apply button
+                                $('#parameter-dialog').modal('refreshButtons');
+                            }
+                        };
+
+                        var requestId;
+                        var updateTimeoutReference;
+
+                        openAddParameterDialog({
+                            onApply: function () {
+                                showUpdateStatus(true);
+
+                                var existingParameters = parameterContextEntity.component.parameters.map(function(p) { return p.parameter });
+                                var parameter = serializeParameter();
+
+                                var isValid = validateParameter(parameter, existingParameters);
+
+                                if (!isValid) {
+                                    // Do not resolve or reject here. Give the user the chance to fix the issue.
+                                    showUpdateStatus(false);
+                                    return;
+                                }
+
+                                // only adding a new parameter, just put the new one in the list for the update
+                                parameterContextEntity.component.parameters = [{
+                                    parameter: {
+                                        name: parameter.name,
+                                        value: parameter.value,
+                                        sensitive: parameter.sensitive,
+                                        description: parameter.description
+                                    }}];
+
+                                requestId = null;
+
+                                // initiate the parameter context update with the new parameter
+                                submitUpdateRequest(parameterContextEntity)
+                                    .done(function(response) {
+                                        var pollUpdateRequest = function (updateRequestEntity) {
+                                            var updateRequest = updateRequestEntity.request;
+                                            var errored = !_.isEmpty(updateRequest.failureReason);
+
+                                            // get the request id
+                                            requestId = updateRequest.requestId;
+
+                                            if (updateRequest.complete === true) {
+                                                showUpdateStatus(false);
+
+                                                if (errored) {
+                                                    nfDialog.showOkDialog({
+                                                        headerText: 'Parameter Context Update Error',
+                                                        dialogContent: 'Unable to complete parameter context update request: ' + nfCommon.escapeHtml(updateRequest.failureReason)
+                                                    });
+                                                    // update failed, therefore converting failed. reject the promise for the caller
+                                                    deferred.reject();
+                                                } else {
+                                                    // resolve the promise for the caller if the update was successful
+                                                    deferred.resolve(parameter);
+                                                }
+
+                                                // delete the update request
+                                                deleteUpdateRequest(parameterContextEntity.id, requestId);
+
+                                                // hide the param dialog
+                                                $('#parameter-dialog').modal('hide');
+
+                                            } else {
+                                                // wait to get an updated status
+                                                updateTimeoutReference = setTimeout(function () {
+                                                    getUpdateRequest(parameterContextEntity.id, requestId)
+                                                        .done(function (getResponse) {
+                                                            pollUpdateRequest(getResponse);
+                                                        })
+                                                        .fail(function (e) {
+                                                            if (!_.isNil(parameterContextEntity.id) && !_.isNil(requestId)) {
+                                                                deleteUpdateRequest(parameterContextEntity.id, requestId);
+                                                            }
+                                                            deferred.reject(e)
+                                                        });
+                                                }, 1000);
+                                            }
+                                        };
+
+                                        pollUpdateRequest(response);
+                                    })
+                                    .fail(function (e) {
+                                        deferred.reject(e)
+                                    });
+                            },
+                            onCancel: function() {
+                                showUpdateStatus(false);
+
+                                if (!_.isNil(parameterContextEntity.id) && !_.isNil(requestId)) {
+                                    deleteUpdateRequest(parameterContextEntity.id, requestId);
+                                    requestId = null;
+                                    if (!_.isNil(updateTimeoutReference)) {
+                                        clearTimeout(updateTimeoutReference);
+                                    }
+                                }
+                                resetParameterDialog();
+
+                                // hide the dialog
+                                $(this).modal('hide');
+                            }
+                        });
+
+                        // set the values of the form from the passed in property
+                        $('#parameter-name').val(property.displayName);
+                        $('#parameter-name').prop('disabled', false);
+                        $('#parameter-sensitive-radio-button').prop('disabled', true);
+                        $('#parameter-not-sensitive-radio-button').prop('disabled', true);
+                        if (property.value === '') {
+                            $('#parameter-dialog').find('.nf-checkbox').removeClass('checkbox-unchecked').addClass('checkbox-checked');
+                        } else {
+                            $('#parameter-dialog').find('.nf-checkbox').removeClass('checkbox-checked').addClass('checkbox-unchecked');
+                        }
+
+                        if (nfCommon.isSensitiveProperty(propertyDescriptor)) {
+                            $('#parameter-sensitive-radio-button').prop('checked', true);
+                            $('#parameter-not-sensitive-radio-button').prop('checked', false);
+                            $('#parameter-value-field').val(null);
+                        } else {
+                            $('#parameter-sensitive-radio-button').prop('checked', false);
+                            $('#parameter-not-sensitive-radio-button').prop('checked', true);
+                            $('#parameter-value-field').val(property.value);
+                        }
+                        $('#parameter-description-field').val(property.description);
+
+                        // update the buttons to possibly trigger the disabled state
+                        $('#parameter-dialog').modal('refreshButtons');
+                    })
+                    .fail(function(e) {
+                        deferred.reject(e);
+                    });
+            }).promise();
         }
     };
 

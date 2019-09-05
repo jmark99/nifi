@@ -284,7 +284,40 @@
                 text: 'No parameter context',
                 value: null
             }];
-            parameterContexts.forEach(function (parameterContext) {
+
+            var authorizedParameterContexts = parameterContexts.filter(function (parameterContext) {
+                return parameterContext.permissions.canRead;
+            });
+
+            var unauthorizedParameterContexts = parameterContexts.filter(function (parameterContext) {
+                return !parameterContext.permissions.canRead;
+            });
+
+            //sort alphabetically
+            var sortedAuthorizedParameterContexts = authorizedParameterContexts.sort(function (a, b) {
+                if (a.component.name < b.component.name) {
+                    return -1;
+                }
+                if (a.component.name > b.component.name) {
+                    return 1;
+                }
+                return 0;
+            });
+
+            //sort alphabetically
+            var sortedUnauthorizedParameterContexts = unauthorizedParameterContexts.sort(function (a, b) {
+                if (a.id < b.id) {
+                    return -1;
+                }
+                if (a.id > b.id) {
+                    return 1;
+                }
+                return 0;
+            });
+
+            var sortedParameterContexts = sortedAuthorizedParameterContexts.concat(sortedUnauthorizedParameterContexts);
+
+            sortedParameterContexts.forEach(function (parameterContext) {
                 var option;
                 if (parameterContext.permissions.canRead) {
                     option = {
@@ -294,6 +327,7 @@
                     };
                 } else {
                     option = {
+                        'disabled': true,
                         'text': parameterContext.id,
                         'value': parameterContext.id
                     }
@@ -315,6 +349,7 @@
             var comboOptions = {
                 options: options,
                 select: function (option) {
+                    var combo = this;
                     if (typeof option.value === 'undefined') {
                         $('#parameter-context-dialog').modal('setHeaderText', 'Add Parameter Context').modal('setButtonModel', [{
                             buttonText: 'Apply',
@@ -372,20 +407,15 @@
                 }
             };
 
-            // initialize the parameter context combo
-            var combo = $('#process-group-parameter-context-combo').combo('destroy').combo(comboOptions);
-
             // populate the parameter context
-            if (processGroupResult.permissions.canRead) {
-                var parameterContextId = null;
-                if ($.isEmptyObject(processGroupResult.component.parameterContext) === false) {
-                    parameterContextId = processGroupResult.component.parameterContext.id;
-                }
-
-                $('#process-group-parameter-context-combo').combo('setSelectedOption', {
-                    value: parameterContextId
-                });
+            if (processGroupResult.permissions.canRead && $.isEmptyObject(processGroupResult.component.parameterContext) === false) {
+                comboOptions.selectedOption = {
+                    value: processGroupResult.component.parameterContext.id
+                };
             }
+
+            // initialize the parameter context combo
+            $('#process-group-parameter-context-combo').combo('destroy').combo(comboOptions);
         }).fail(nfErrorHandler.handleAjaxError);
     };
 
