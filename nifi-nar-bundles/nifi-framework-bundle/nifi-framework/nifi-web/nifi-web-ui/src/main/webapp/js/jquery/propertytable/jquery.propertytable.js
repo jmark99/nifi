@@ -127,6 +127,11 @@
         return false;
     };
 
+    var containsParameterReference = function (value) {
+        var paramRefsRegex = /#{[a-zA-Z0-9-_. ]+}/;
+        return paramRefsRegex.test(value);
+    };
+
     var getSupportTip = function (isEl, isSupported) {
         var supportContainer = $('<div></div>');
 
@@ -610,7 +615,8 @@
                     // load the parameters
                     parametersLoaded = new $.Deferred(function (deferred) {
                         loadParameters(propertyDescriptor, function (parameterListing) {
-                            parameterListing.forEach(function (parameter) {
+                            var sortedParams = _.sortBy(parameterListing, 'name');
+                            sortedParams.forEach(function (parameter) {
                                 parameterOptions.push({
                                     text: parameter.name,
                                     value: '#{' + parameter.name + '}',
@@ -1362,15 +1368,23 @@
                 });
             }
 
-            if (options.readOnly !== true) {
-                var canModifyParamContexts = nfCommon.canModifyParameterContexts();
-                var paramContextIsSet = false;
-                if (_.isFunction(options.getParameterContextId)) {
-                    paramContextIsSet = !_.isNil(options.getParameterContextId(groupId));
-                }
-                var referencesParam = referencesParameter(dataContext.value);
+            var referencesParam = containsParameterReference(dataContext.value);
+            var canConvertPropertyToParam = false;
+            var canReadParamContext = false;
 
-                if (canModifyParamContexts && paramContextIsSet && !referencesParam && !identifiesControllerService) {
+            if (_.isFunction(options.getParameterContext)) {
+                var paramContext = options.getParameterContext(groupId);
+                var canWriteParamContext = _.get(paramContext, 'permissions.canWrite', false);
+                canReadParamContext = _.get(paramContext, 'permissions.canRead', false);
+                canConvertPropertyToParam = canWriteParamContext && canReadParamContext;
+            }
+
+            if (referencesParam && canReadParamContext) {
+                markup += '<div title="Go to parameter" class="goto-to-parameter pointer fa fa-long-arrow-right"></div>';
+            }
+
+            if (options.readOnly !== true) {
+                if (canConvertPropertyToParam && !referencesParam && !identifiesControllerService) {
                     markup += '<div title="Convert to parameter" class="convert-to-parameter pointer fa fa-level-up"></div>';
                 }
 
@@ -1571,16 +1585,20 @@
                         }
                     }
                 } else if (target.hasClass('convert-to-parameter')) {
-                    var parameterContextId;
-                    if (_.isFunction(options.getParameterContextId)) {
-                        parameterContextId = options.getParameterContextId(groupId);
+                    var parameterContext;
+                    var canConvertPropertyToParam = false;
+                    if (_.isFunction(options.getParameterContext)) {
+                        parameterContext = options.getParameterContext(groupId);
+                        var canWriteParamContext = _.get(parameterContext, 'permissions.canWrite', false);
+                        var canReadParamContext = _.get(parameterContext, 'permissions.canRead', false);
+                        canConvertPropertyToParam = canWriteParamContext && canReadParamContext;
                     }
 
-                    if (options.readOnly !== true && !_.isNil(parameterContextId)) {
+                    if (options.readOnly !== true && canConvertPropertyToParam) {
                         var descriptors = table.data('descriptors');
                         var propertyDescriptor = descriptors[property.property];
 
-                        nfParameterContexts.convertPropertyToParameter(property, propertyDescriptor, parameterContextId)
+                        nfParameterContexts.convertPropertyToParameter(property, propertyDescriptor, parameterContext.id)
                             .done(function (parameter) {
                                 var updatedItem = _.extend({}, property, {
                                     previousValue: property.value,
@@ -1589,6 +1607,22 @@
                                 // set the property value to the reference the parameter that was created
                                 propertyData.updateItem(property.id, updatedItem);
                             });
+                    }
+                } else if (target.hasClass('goto-to-parameter')) {
+                    var parameterContext;
+                    if (_.isFunction(options.getParameterContext)) {
+                        parameterContext = options.getParameterContext(groupId);
+                        var canReadParamContext = _.get(parameterContext, 'permissions.canRead', false);
+
+                        if (canReadParamContext && !_.isNil(property.value)) {
+                            // get the reference parameter
+                            var paramRefsRegex = /#{([a-zA-Z0-9-_. ]+)}/;
+                            var result = property.value.match(paramRefsRegex);
+                            if (!_.isEmpty(result) && result.length === 2) {
+                                var parameterName = result[1];
+                                nfParameterContexts.showParameterContext(parameterContext.id, null, parameterName);
+                            }
+                        }
                     }
                 }
             }
