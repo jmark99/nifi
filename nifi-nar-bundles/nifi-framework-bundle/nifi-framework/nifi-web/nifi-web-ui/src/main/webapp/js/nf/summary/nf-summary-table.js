@@ -801,6 +801,7 @@
             sortable: true,
             defaultSortAsc: false,
             resize: true,
+            toolTip: 'Number of files/bytes in current queue',
             formatter: nfCommon.genericValueFormatter
         };
 
@@ -811,6 +812,7 @@
             name: 'Threshold %: <span class="backpressure-object-title">Queue</span>&nbsp;&nbsp;|&nbsp;&nbsp;<span class="backpressure-data-size-title">Size</span>',
             sortable: true,
             defaultSortAsc: false,
+            toolTip: 'backpressure column',
             formatter: backpressureFormatter,
             resize: true
         };
@@ -827,18 +829,6 @@
                 maxWidth: 50
             },
             {
-                id: 'name',
-                field: 'name',
-                name: 'Name',
-                sortable: true,
-                resizable: true,
-                formatter: valueFormatter
-            },
-            queueColumn,
-            backpressureColumn,
-            backpressurePredictionColumn,
-            inputColumn,
-            {
                 id: 'sourceName',
                 field: 'sourceName',
                 name: 'From Source',
@@ -846,7 +836,14 @@
                 resizable: true,
                 formatter: nfCommon.genericValueFormatter
             },
-            outputColumn,
+            {
+                id: 'name',
+                field: 'name',
+                name: 'Name',
+                sortable: true,
+                resizable: true,
+                formatter: valueFormatter
+            },
             {
                 id: 'destinationName',
                 field: 'destinationName',
@@ -857,8 +854,9 @@
             },
             inputColumn,
             queueColumn,
-            backpressureColumn,
             outputColumn,
+            backpressureColumn,
+            backpressurePredictionColumn,
             overflowColumn
         ];
 
