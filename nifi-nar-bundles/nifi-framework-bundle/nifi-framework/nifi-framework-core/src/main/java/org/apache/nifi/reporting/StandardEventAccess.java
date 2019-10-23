@@ -24,6 +24,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.commons.collections4.Predicate;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.action.Action;
@@ -66,6 +69,9 @@ import org.apache.nifi.remote.PublicPort;
 import org.apache.nifi.remote.RemoteGroupPort;
 
 public class StandardEventAccess implements UserAwareEventAccess {
+
+    private static final Logger LOG = LoggerFactory.getLogger(StandardEventAccess.class);
+
     private final FlowFileEventRepository flowFileEventRepository;
     private final FlowController flowController;
     private final StatusAnalyticsEngine statusAnalyticsEngine;
@@ -349,12 +355,28 @@ public class StandardEventAccess implements UserAwareEventAccess {
                 bytesTransferred += connectionStatusReport.getContentSizeIn() + connectionStatusReport.getContentSizeOut();
             }
 
+            long tmpCount = 0L;
+            long tmpBytes = 0L;
+
             if (statusAnalyticsEngine != null) {
                 StatusAnalytics statusAnalytics =  statusAnalyticsEngine.getStatusAnalytics(conn.getIdentifier());
                 if (statusAnalytics != null) {
                     Map<String,Long> predictionValues = statusAnalytics.getPredictions();
+
+                    predictionValues.forEach((k,v) -> {
+                        if (k == "timeToCountBackPressureMillis") {
+                            LOG.info(">>>> {}: prediction Count: {} / {}", conn.getName(),
+                                getAsTime(v), v);
+                        }
+                        if (k == "timeToBytesBackPressureMillis") {
+                            LOG.info(">>>> {}: prediction Bytes: {} / {}", conn.getName(),
+                                getAsTime(v), v);
+                        }
+                    });
+
                     ConnectionStatusPredictions predictions = new ConnectionStatusPredictions();
                     connStatus.setPredictions(predictions);
+
                     predictions.setPredictedTimeToBytesBackpressureMillis(predictionValues.get("timeToBytesBackpressureMillis"));
                     predictions.setPredictedTimeToCountBackpressureMillis(predictionValues.get("timeToCountBackpressureMillis"));
                     predictions.setNextPredictedQueuedBytes(predictionValues.get("nextIntervalBytes"));
@@ -362,6 +384,13 @@ public class StandardEventAccess implements UserAwareEventAccess {
                     predictions.setPredictedPercentCount(predictionValues.get("nextIntervalPercentageUseCount").intValue());
                     predictions.setPredictedPercentBytes(predictionValues.get("nextIntervalPercentageUseBytes").intValue());
                     predictions.setPredictionIntervalMillis(predictionValues.get("intervalTimeMillis"));
+
+                    tmpCount = predictions.getPredictedTimeToCountBackpressureMillis();
+                    tmpBytes = predictions.getPredictedTimeToBytesBackpressureMillis();
+//                    LOG.info(">>>> {}: setting tmpCount = {} / {}", conn.getName(),
+//                        getAsTime(tmpCount), tmpCount);
+//                    LOG.info(">>>> {}: setting tmpBytes = {} / {}", conn.getName(),
+//                        getAsTime(tmpBytes) , tmpBytes);
                 }
             }else{
                 connStatus.setPredictions(null);
@@ -396,11 +425,31 @@ public class StandardEventAccess implements UserAwareEventAccess {
             queuedCount += connectionQueuedCount;
             queuedContentSize += connectionQueuedBytes;
 
-            QueueOverflowMonitor.computeOverflowEstimate(conn, flowController);
-            timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
-            timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
-            connStatus.setTimeToFailureBytes(timeToFailureBytes);
-            connStatus.setTimeToFailureCount(timeToFailureCount);
+            // ADD HERE
+//            QueueOverflowMonitor.computeOverflowEstimate(conn, flowController);
+//            timeToFailureBytes = QueueOverflowMonitor.getTimeToByteOverflow();
+//            timeToFailureCount = QueueOverflowMonitor.getTimeToCountOverflow();
+
+//            LOG.info(">>>> {}: tmpCount2 = {} / {}", connStatus.getName(), getAsTime(tmpCount),
+//                tmpCount);
+//            LOG.info(">>>> {}: tmpBytes2 = {} / {}", connStatus.getName(), getAsTime(tmpBytes),
+//                tmpBytes);
+//
+//            LOG.info(">>>> {}: timeToFailureCount: {} / {}", connStatus.getName(),
+//                getAsTime(timeToFailureCount), timeToFailureCount);
+//            LOG.info(">>>> {}: timeToFailureBytes: {} / {}", connStatus.getName(),
+//                getAsTime(timeToFailureBytes), timeToFailureBytes);
+
+//            connStatus.setTimeToFailureBytes(timeToFailureBytes);
+//            connStatus.setTimeToFailureCount(timeToFailureCount);
+
+
+            LOG.info(">>>> {}: tmpCount = {} / {}", connStatus.getName(), getAsTime(tmpCount),
+                tmpCount);
+            LOG.info(">>>> {}: tmpBytes = {} / {}", connStatus.getName(), getAsTime(tmpBytes),
+                tmpBytes);
+            connStatus.setTimeToFailureBytes(tmpBytes);
+            connStatus.setTimeToFailureCount(tmpCount);
 
             final Connectable source = conn.getSource();
             if (ConnectableType.REMOTE_OUTPUT_PORT.equals(source.getConnectableType())) {
@@ -553,6 +602,47 @@ public class StandardEventAccess implements UserAwareEventAccess {
 
         return status;
     }
+
+
+    private String getAsTime(Long duration) {
+        long MILLIS_PER_DAY = 86400000;
+        long MILLIS_PER_HOUR = 3600000;
+        long MILLIS_PER_MINUTE = 60000;
+        long MILLIS_PER_SECOND = 1000;
+
+        // don't support sub millisecond resolution
+        duration = duration < 1 ? 0 : duration;
+
+        // determine the number of days in the specified duration
+        long days = duration / MILLIS_PER_DAY;
+        days = days >= 1 ? days : 0;
+        duration %= MILLIS_PER_DAY;
+
+        // remaining duration should be less than 1 day, get number of hours
+        long hours = duration / MILLIS_PER_HOUR;
+        hours = hours >= 1 ? hours : 0;
+        duration %= MILLIS_PER_HOUR;
+
+        // remaining duration should be less than 1 hour, get number of minutes
+        long minutes = duration / MILLIS_PER_MINUTE;
+        minutes = minutes >= 1 ? minutes : 0;
+        duration %= MILLIS_PER_MINUTE;
+
+        // remaining duration should be less than 1 minute, get number of seconds
+        long seconds = duration / MILLIS_PER_SECOND;
+        seconds = seconds >= 1 ? seconds : 0;
+
+        // format the time
+        String theTime = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+
+        // only include days if appropriate
+        if (days > 0) {
+            return days + " days and " + theTime;
+        } else {
+            return theTime;
+        }
+    }
+
 
     // pulled out to replace duplicated code
     private void setRunStatus(Port port, PortStatus portStatus) {
